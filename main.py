@@ -2,6 +2,7 @@ import json
 import telebot
 from config.auto_search_dir import data_config
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+import re
 
 bot = telebot.TeleBot(data_config['my_telegram_bot']['bot_token'], parse_mode='HTML')
 
@@ -9,6 +10,7 @@ bot = telebot.TeleBot(data_config['my_telegram_bot']['bot_token'], parse_mode='H
 class Main:
     def __init__(self):
         self.list_commands = None
+        self.keys = None
         self.data = None
         self.list_data = None
         self.select_command = None
@@ -31,14 +33,22 @@ class Main:
         @bot.message_handler(commands=['start'])
         def handle_start(message):
             self.user_id = message.chat.id
+            if message.message_id:
+                for id_ in range(max(1, message.message_id - 10), message.message_id + 1):
+                    try:
+                        bot.delete_message(chat_id=message.chat.id, message_id=id_)
+                    except Exception as error:
+                        print(f"Ошибка при удалении сообщения в handle_start_main: {id_}: {error}")
+
             if str(self.user_id) in list(self.load_data()["admins"].values()) or str(message.chat.username).replace(
                     '@',
                     '') in \
                     list(self.load_data()["admins"].values()):
                 self.admin = True
                 self.show_start_menu()
-            elif str(self.user_id) in list(self.load_data()["users"].values()) or str(message.chat.username).replace('@',
-                                                                                                                   '') in \
+            elif str(self.user_id) in list(self.load_data()["users"].values()) or str(message.chat.username).replace(
+                    '@',
+                    '') in \
                     list(self.load_data()["users"].values()):
                 self.admin = False
                 self.show_start_menu()
@@ -51,6 +61,27 @@ class Main:
         def handle_query(call):
             self.call = call
             self.navigate()
+
+        @bot.message_handler(commands=['back'])
+        def handle_back(message):
+            print(self.call.data)
+            if len(self.call.data.split("/")) > 1:
+                bot.delete_message(message.chat.id, message.message_id)
+                self.call.data = re.sub(r'\/[^\/]+$', '', self.call.data)
+                self.navigate()
+            elif len(self.call.data.split("/")) == 1 and self.call.data != "Начать":
+                bot.delete_message(message.chat.id, message.message_id)
+                self.call.data = "Начать"
+                self.navigate()
+            else:
+                if message.message_id:
+                    for id_ in range(max(1, message.message_id - 10), message.message_id + 1):
+                        try:
+                            bot.delete_message(chat_id=message.chat.id, message_id=id_)
+                        except Exception as error:
+                            print(f"Ошибка при удалении сообщения в handle_start_main: {id_}: {error}")
+
+                handle_start(message)
 
     def show_start_menu(self):
 
@@ -70,9 +101,10 @@ class Main:
             self.load_data()["admins"].values()) or str(self.call.message.chat.username).replace('@',
                                                                                                  '') in \
                 list(self.load_data()["admins"].values()):
-            keys = self.call.data.split("/") if self.call.data else []
+            self.keys = self.call.data.split("/") if self.call.data else []
+
             data = self.load_data()["commands"]
-            for key in keys:
+            for key in self.keys:
                 data = data.get(key, {})
             if isinstance(data, dict) and data:
                 markup = InlineKeyboardMarkup()
@@ -84,9 +116,9 @@ class Main:
                             InlineKeyboardButton(k, callback_data=f"{self.call.data}/{k}" if self.call.data else k))
 
                 # Формируем путь с подчёркиванием последнего ключа
-                if keys:
-                    last_key = f"<u>{keys[-1]}</u>"
-                    section_path = " - ".join(keys[:-1] + [last_key])  # Все, кроме последнего, остаются обычными
+                if self.keys:
+                    last_key = f"<u>{self.keys[-1]}</u>"
+                    section_path = " - ".join(self.keys[:-1] + [last_key])  # Все, кроме последнего, остаются обычными
                     full_path = f"Главное меню - {section_path}"  # Добавляем "Главное меню" в начало
                 else:
                     full_path = "Главное меню"  # Если ключей нет, просто "Главное меню"
@@ -112,7 +144,6 @@ class Main:
         else:
             bot.send_message(self.user_id, "У вас нет доступа к данному боту")
             bot.delete_message(self.user_id, self.call.message.message_id)
-
 
 if __name__ == "__main__":
     while True:
