@@ -4,7 +4,9 @@
         "chat_id": "5444152518"
     },
     "admins": {
-        "Кирилл": "life2232"
+        "Кирилл": "life2232",
+        "Петя": "petya",
+        "Lena": "lenusaik"
     },
     "commands": {
         "Темп-1": {
