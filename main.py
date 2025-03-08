@@ -10,6 +10,7 @@ bot = telebot.TeleBot(data_config['my_telegram_bot']['bot_token'], parse_mode='H
 
 class Main:
     def __init__(self):
+        self.state_stack = {}  # Стек для хранения состояний
         self.list_commands = None
         self.open_contol = None
         self.del_vd_stat = None
@@ -78,23 +79,20 @@ class Main:
 
         @bot.message_handler(commands=['back'])
         def handle_back(message):
-            if len(self.call.data.split("/")) > 1:
-                bot.delete_message(message.chat.id, message.message_id)
-                self.call.data = re.sub(r'\/[^\/]+$', '', self.call.data)
-                self.navigate()
-            elif len(self.call.data.split("/")) == 1 and self.call.data != "Начать":
-                bot.delete_message(message.chat.id, message.message_id)
-                self.call.data = "Начать"
-                self.navigate()
-            else:
-                if message.message_id:
-                    for id_ in range(max(1, message.message_id - 10), message.message_id + 1):
-                        try:
-                            bot.delete_message(chat_id=message.chat.id, message_id=id_)
-                        except:
-                            pass
-
-                handle_start(message)
+            if message.message_id:
+                try:
+                    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                except:
+                    pass
+            while self.state_stack:
+                last_key, last_function = self.state_stack.popitem()
+                try:
+                    last_function()  # Попытка вызвать функцию
+                    break  # Выход из цикла, если вызов завершился успешно
+                except Exception as error:
+                    print(f"Ошибка при вызове last_function: {error}")
+                    # Если возникла ошибка, продолжаем цикл, чтобы вызвать следующую функцию
+            # словарь где находятяться сохраненные сообщения для одной сесии
 
         @bot.callback_query_handler(func=lambda call: True)
         def handle_query(call):
@@ -104,6 +102,8 @@ class Main:
             if self.admin is not None:
                 # разделяем разные режими доступа как для обычных пользователей, так и для админов
                 if self.call.data == 'Начать':
+                    if self.call.data not in self.state_stack:
+                        self.state_stack[self.call.data] = self.show_start_menu
                     self.navigate()
                 else:
                     if self.call.data not in self.keys:
@@ -111,14 +111,21 @@ class Main:
                     self.navigate()
                 if self.admin:
                     if self.call.data == "Управление":
+                        if self.call.data not in self.state_stack:
+                            self.state_stack[self.call.data] = self.show_start_menu
                         self.control_buttons()
                     elif self.call.data == 'Доступ к боту':
-
+                        if self.call.data not in self.state_stack:
+                            self.state_stack[self.call.data] = self.control_buttons
                         self.add_dell_users()
                     elif self.call.data == 'Открыть доступ':
+                        if self.call.data not in self.state_stack:
+                            self.state_stack[self.call.data] = self.add_dell_users
                         self.control = True
                         self.del_buttons_commands()
                     elif self.call.data == 'Закрыть доступ':
+                        if self.call.data not in self.state_stack:
+                            self.state_stack[self.call.data] = self.add_dell_users
                         self.control = False
                         self.del_buttons_commands()
 
@@ -135,10 +142,8 @@ class Main:
                         self.open()
 
                     elif self.call.data.startswith("toggle_"):
-
                         if self.call.data.split("_")[2] not in ('Видео', 'Статистика'):
                             user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
-
                             if user_key in self.selected_users:
                                 self.selected_users.remove(user_key)  # Убираем из списка
                             else:
@@ -156,6 +161,8 @@ class Main:
                         self.selected_users = set()
                         self.del_buttons_commands()
                     elif self.call.data == 'Редактирование команд':
+                        if self.call.data not in self.state_stack:
+                            self.state_stack[self.call.data] = self.control_buttons
                         self.control = None
                         self.del_buttons_commands()
                     elif (self.call.data in self.load_data()[
