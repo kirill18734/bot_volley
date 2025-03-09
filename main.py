@@ -77,13 +77,13 @@ class Main:
 
         @bot.message_handler(commands=['back'])
         def handle_back(message):
-            if list(self.state_stack.keys())[0] == 'Управление' and len(self.state_stack.keys()) > 1:
+            if 'Управление' in self.state_stack.keys() and len(self.state_stack.keys()) > 1:
                 while self.state_stack:
                     self.delete_recent_messages(message)
                     last_key, last_function = self.state_stack.popitem()
                     last_function()
                     break
-            elif list(self.state_stack.keys())[0] == 'Начать' and self.keys:
+            elif 'Начать' in self.state_stack.keys() and self.keys:
                 while self.state_stack:
                     if message.message_id:
                         try:
@@ -105,22 +105,25 @@ class Main:
 
         @bot.callback_query_handler(func=lambda call: True)
         def handle_query(call):
+
             self.call = call
             self.entry(call.message)
             if self.admin is None:
                 return
-
             # разделяем разные режими доступа как для обычных пользователей, так и для админов
             if self.call.data == 'Начать':
                 self.state_stack.clear()
                 self.state_stack[self.call.data] = self.show_start_menu
+                self.navigate()
+            elif 'Начать' in self.state_stack.keys():
+                self.keys.append(self.call.data)
                 self.navigate()
             elif self.admin:
                 if self.call.data == "Управление":
                     self.state_stack.clear()
                     self.state_stack[self.call.data] = self.show_start_menu
                     self.control_buttons()
-                if list(self.state_stack.keys())[0] == 'Управление':
+                elif 'Управление' in self.state_stack.keys():
                     if self.call.data == 'Доступ к боту':
                         if self.call.data not in self.state_stack:
                             self.state_stack[self.call.data] = self.control_buttons
@@ -165,7 +168,7 @@ class Main:
                                 self.selected_video_stat.add(user_key)  # Добавляем в список
                             self.dell_video_statis()
                     elif self.call.data == "cancel_dell":
-                        self.selected_users = set()
+                        self.selected_users.clear()
                         self.del_buttons_commands()
                     elif self.call.data == 'Редактирование команд':
                         if self.call.data not in self.state_stack:
@@ -192,14 +195,17 @@ class Main:
                     elif self.call.data == 'save_dell_video_stats':
                         self.dell_users_or_admins()
                     elif self.call.data == 'cancel_dell_video_stats':
-                        self.selected_video_stat = set()
+                        self.selected_video_stat.clear()
                         self.edit_command()
+                    else:
+                        self.keys.append(self.call.data)
+                        self.navigate()
                 else:
-                    self.keys.append(self.call.data)
-                    self.navigate()
+                    self.delete_recent_messages(call.message)
+                    handle_start(call.message)
             else:
-                self.keys.append(self.call.data)
-                self.navigate()
+                self.delete_recent_messages(call.message)
+                handle_start(call.message)
 
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
