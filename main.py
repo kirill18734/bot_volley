@@ -75,118 +75,134 @@ class Main:
 
             self.entry(message)
             if self.admin is not None:
+                self.state_stack = {}
                 self.show_start_menu()
 
         @bot.message_handler(commands=['back'])
         def handle_back(message):
-            if message.message_id:
-                try:
-                    bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-                except:
-                    pass
-            while self.state_stack:
-                last_key, last_function = self.state_stack.popitem()
-                try:
-                    last_function()  # Попытка вызвать функцию
-                    break  # Выход из цикла, если вызов завершился успешно
-                except Exception as error:
-                    print(f"Ошибка при вызове last_function: {error}")
-                    # Если возникла ошибка, продолжаем цикл, чтобы вызвать следующую функцию
-            # словарь где находятяться сохраненные сообщения для одной сесии
+            if list(self.state_stack.keys())[0] == 'Управление' and len(self.state_stack.keys()) > 1:
+                while self.state_stack:
+                    try:
+                        bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                    except:
+                        pass
+                    last_key, last_function = self.state_stack.popitem()
+                    last_function()
+                    break
+            if list(self.state_stack.keys())[0] == 'Начать' and self.keys:
+                while self.state_stack:
+                    try:
+                        bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+                    except:
+                        pass
+                    self.keys.pop()
+                    self.navigate()
+                    break
+            else:
+                if message.message_id:
+                    for id_ in range(max(1, message.message_id - 10), message.message_id + 1):
+                        try:
+                            bot.delete_message(chat_id=message.chat.id, message_id=id_)
+                        except:
+                            pass
+                self.state_stack = {}
+                self.show_start_menu()
 
         @bot.callback_query_handler(func=lambda call: True)
         def handle_query(call):
-
             self.call = call
             self.entry(self.call.message)
             if self.admin is not None:
                 # разделяем разные режими доступа как для обычных пользователей, так и для админов
                 if self.call.data == 'Начать':
-                    if self.call.data not in self.state_stack:
-                        self.state_stack[self.call.data] = self.show_start_menu
+                    self.state_stack = {}
+                    self.state_stack[self.call.data] = self.show_start_menu
                     self.navigate()
-                else:
-                    if self.call.data not in self.keys:
-                        self.keys.append(self.call.data)
-                    self.navigate()
-                if self.admin:
+                elif self.admin:
                     if self.call.data == "Управление":
-                        if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.show_start_menu
+                        self.state_stack = {}
+                        self.state_stack[self.call.data] = self.show_start_menu
                         self.control_buttons()
-                    elif self.call.data == 'Доступ к боту':
-                        if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.control_buttons
-                        self.add_dell_users()
-                    elif self.call.data == 'Открыть доступ':
-                        if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.add_dell_users
-                        self.control = True
-                        self.del_buttons_commands()
-                    elif self.call.data == 'Закрыть доступ':
-                        if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.add_dell_users
-                        self.control = False
-                        self.del_buttons_commands()
+                    if list(self.state_stack.keys())[0] == 'Управление':
+                        if self.call.data == 'Доступ к боту':
+                            if self.call.data not in self.state_stack:
+                                self.state_stack[self.call.data] = self.control_buttons
+                            self.add_dell_users()
+                        elif self.call.data == 'Открыть доступ':
+                            if self.call.data not in self.state_stack:
+                                self.state_stack[self.call.data] = self.add_dell_users
+                            self.control = True
+                            self.del_buttons_commands()
+                        elif self.call.data == 'Закрыть доступ':
+                            if self.call.data not in self.state_stack:
+                                self.state_stack[self.call.data] = self.add_dell_users
+                            self.control = False
+                            self.del_buttons_commands()
 
-                    elif (self.call.data in self.load_data()[
-                        "commands"].keys() or self.call.data == 'Админы') and self.control is False:
-                        self.select_command = self.call.data if self.call.data != 'Админы' else 'admins'
-                        self.close()
-                    elif self.call.data == "save_dell":
-                        self.dell_users_or_admins()
+                        elif (self.call.data in self.load_data()[
+                            "commands"].keys() or self.call.data == 'Админы') and self.control is False:
+                            self.select_command = self.call.data if self.call.data != 'Админы' else 'admins'
+                            self.close()
+                        elif self.call.data == "save_dell":
+                            self.dell_users_or_admins()
 
-                    elif (self.call.data in self.load_data()[
-                        "commands"].keys() or self.call.data == 'Админы') and self.control:
-                        self.select_command = self.call.data if self.call.data != 'Админы' else 'admins'
-                        self.open()
+                        elif (self.call.data in self.load_data()[
+                            "commands"].keys() or self.call.data == 'Админы') and self.control:
+                            self.select_command = self.call.data if self.call.data != 'Админы' else 'admins'
+                            self.open()
 
-                    elif self.call.data.startswith("toggle_"):
-                        if self.call.data.split("_")[2] not in ('Видео', 'Статистика'):
-                            user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
-                            if user_key in self.selected_users:
-                                self.selected_users.remove(user_key)  # Убираем из списка
+                        elif self.call.data.startswith("toggle_"):
+                            if self.call.data.split("_")[2] not in ('Видео', 'Статистика'):
+                                user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
+                                if user_key in self.selected_users:
+                                    self.selected_users.remove(user_key)  # Убираем из списка
+                                else:
+                                    self.selected_users.add(user_key)  # Добавляем в список
+                                self.close()  # Перерисовываем кнопки с обновленными значениями
                             else:
-                                self.selected_users.add(user_key)  # Добавляем в список
-                            self.close()  # Перерисовываем кнопки с обновленными значениями
-                        else:
-                            user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
+                                user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
 
-                            if user_key in self.selected_video_stat:
-                                self.selected_video_stat.remove(user_key)  # Убираем из списка
+                                if user_key in self.selected_video_stat:
+                                    self.selected_video_stat.remove(user_key)  # Убираем из списка
+                                else:
+                                    self.selected_video_stat.add(user_key)  # Добавляем в список
+                                self.dell_video_statis()
+                        elif self.call.data == "cancel_dell":
+                            self.selected_users = set()
+                            self.del_buttons_commands()
+                        elif self.call.data == 'Редактирование команд':
+                            if self.call.data not in self.state_stack:
+                                self.state_stack[self.call.data] = self.control_buttons
+                            self.control = None
+                            self.del_buttons_commands()
+                        elif (self.call.data in self.load_data()[
+                            "commands"].keys()) and self.control is None:
+                            self.select_command = self.call.data
+                            self.edit_command()
+                        elif self.call.data == 'Редактировать видео':
+                            self.edit_video()
+                        elif self.call.data == 'Редактировать ститистику':
+                            self.edit_statistic()
+                        elif self.call.data in ('Добавить ститистику', 'Добавить видео'):
+                            self.add_video_statis()
+                        elif self.call.data in ('Удалить ститистику', 'Удалить видео'):
+                            get_data = 'Видео' if self.call.data.split(' ')[-1] == 'видео' else 'Статистика'
+                            if get_data == 'Видео':
+                                self.del_vd_stat = True
                             else:
-                                self.selected_video_stat.add(user_key)  # Добавляем в список
+                                self.del_vd_stat = False
                             self.dell_video_statis()
-                    elif self.call.data == "cancel_dell":
-                        self.selected_users = set()
-                        self.del_buttons_commands()
-                    elif self.call.data == 'Редактирование команд':
-                        if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.control_buttons
-                        self.control = None
-                        self.del_buttons_commands()
-                    elif (self.call.data in self.load_data()[
-                        "commands"].keys()) and self.control is None:
-                        self.select_command = self.call.data
-                        self.edit_command()
-                    elif self.call.data == 'Редактировать видео':
-                        self.edit_video()
-                    elif self.call.data == 'Редактировать ститистику':
-                        self.edit_statistic()
-                    elif self.call.data in ('Добавить ститистику', 'Добавить видео'):
-                        self.add_video_statis()
-                    elif self.call.data in ('Удалить ститистику', 'Удалить видео'):
-                        get_data = 'Видео' if self.call.data.split(' ')[-1] == 'видео' else 'Статистика'
-                        if get_data == 'Видео':
-                            self.del_vd_stat = True
-                        else:
-                            self.del_vd_stat = False
-                        self.dell_video_statis()
-                    elif self.call.data == 'save_dell_video_stats':
-                        self.dell_users_or_admins()
-                    elif self.call.data == 'cancel_dell_video_stats':
-                        self.selected_video_stat = set()
-                        self.edit_command()
+                        elif self.call.data == 'save_dell_video_stats':
+                            self.dell_users_or_admins()
+                        elif self.call.data == 'cancel_dell_video_stats':
+                            self.selected_video_stat = set()
+                            self.edit_command()
+                    else:
+                        self.keys.append(self.call.data)
+                        self.navigate()
+                else:
+                    self.keys.append(self.call.data)
+                    self.navigate()
 
     def show_start_menu(self):
         self.markup = InlineKeyboardMarkup()
@@ -229,8 +245,21 @@ class Main:
                     reply_markup=self.markup,
                     parse_mode="HTML"  # Включаем поддержку HTML
                 )
+        # elif len(self.keys) == 1:
+        #     buttons = [InlineKeyboardButton(key, callback_data=key) for key in
+        #                list(self.load_data()["commands"].keys())]
+        #     self.markup = InlineKeyboardMarkup([buttons])
+        #     new_text = """Вы находитесь в разделе: <u>Главное меню</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+        #     bot.edit_message_text(
+        #         chat_id=self.call.message.chat.id,
+        #         message_id=self.call.message.message_id,
+        #         text=new_text,
+        #         reply_markup=self.markup,
+        #         parse_mode="HTML"  # Включаем поддержку HTML
+        #     )
 
         else:
+
             try:
                 # Удаляем сообщение с фото
                 bot.delete_message(self.call.message.chat.id, self.call.message.message_id)
