@@ -83,7 +83,7 @@ class Main:
                     last_key, last_function = self.state_stack.popitem()
                     last_function()
                     break
-            if list(self.state_stack.keys())[0] == 'Начать' and self.keys:
+            elif list(self.state_stack.keys())[0] == 'Начать' and self.keys:
                 while self.state_stack:
                     if message.message_id:
                         try:
@@ -100,7 +100,7 @@ class Main:
                             bot.delete_message(chat_id=message.chat.id, message_id=id_)
                         except:
                             pass
-                self.state_stack = {}
+                self.state_stack.clear()
                 self.show_start_menu(message)
 
         @bot.callback_query_handler(func=lambda call: True)
@@ -261,11 +261,29 @@ class Main:
             bot.send_message(self.call.message.chat.id, new_text, reply_markup=self.markup)
 
     def control_buttons(self):
-        bot.delete_message(self.call.message.chat.id, self.call.message.message_id)
-        buttons = [InlineKeyboardButton(key, callback_data=key) for key in ["Доступ к боту", "Редактирование команд"]]
-        self.markup = InlineKeyboardMarkup([buttons])
-        new_text = """Вы находитесь в разделе: <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
-        bot.send_message(self.call.message.chat.id, new_text, reply_markup=self.markup)
+        try:
+            buttons = [InlineKeyboardButton(key, callback_data=key) for key in
+                       ["Доступ к боту", "Редактирование команд"]]
+            self.markup = InlineKeyboardMarkup([buttons])
+            new_text = """Вы находитесь в разделе: <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+            bot.edit_message_text(
+                chat_id=self.call.message.chat.id,
+                message_id=self.call.message.message_id,
+                text=new_text,
+                reply_markup=self.markup,
+                parse_mode="HTML"  # Включаем поддержку HTML
+            )
+        except:
+            try:
+                # Удаляем сообщение с фото
+                bot.delete_message(self.call.message.chat.id, self.call.message.message_id)
+            except:
+                pass
+            buttons = [InlineKeyboardButton(key, callback_data=key) for key in
+                       ["Доступ к боту", "Редактирование команд"]]
+            self.markup = InlineKeyboardMarkup([buttons])
+            new_text = """Вы находитесь в разделе: <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+            bot.send_message(self.call.message.chat.id, new_text, reply_markup=self.markup)
 
     def add_dell_users(self):
         self.markup = InlineKeyboardMarkup()
