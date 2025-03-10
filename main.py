@@ -15,7 +15,6 @@ class Main:
         self.selected_video_stat = set()
         self.control = None
         self.keys = []
-        self.data = None
         self.list_data = None
         self.select_command = None
         self.markup = None
@@ -96,13 +95,18 @@ class Main:
                         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
                     except:
                         pass
-                try:
-                    while self.state_stack:
-                        last_key, last_function = self.state_stack.popitem()
-                        last_function()  # Попытка вызвать функцию
-                        break  # Выход из цикла, если вызов завершился успешно
-                except:
-                    self.state_stack.clear()
+                if self.state_stack:
+                    try:
+
+                        while self.state_stack:
+                            last_key, last_function = self.state_stack.popitem()
+
+                            last_function()  # Попытка вызвать функцию
+                            break  # Выход из цикла, если вызов завершился успешно
+                    except:
+                        self.state_stack.clear()
+                        self.show_start_menu(message)
+                else:
                     self.show_start_menu(message)
 
         @bot.callback_query_handler(func=lambda call: True)
@@ -123,7 +127,7 @@ class Main:
             elif self.admin:
                 if self.call.data == "Управление":
                     self.state_stack.clear()
-                    self.state_stack[self.call.data] = self.show_start_menu
+                    self.state_stack[self.call.data] = self.control_buttons
                     self.control_buttons()
                 elif 'Управление' in self.state_stack.keys():
                     if self.call.data == 'Доступ к боту':
@@ -174,7 +178,7 @@ class Main:
                         self.del_buttons_commands()
                     elif self.call.data == 'Редактирование команд':
                         if self.call.data not in self.state_stack:
-                            self.state_stack[self.call.data] = self.control_buttons
+                            self.state_stack[self.call.data] = self.del_buttons_commands
                         self.control = None
                         self.del_buttons_commands()
                     elif (self.call.data in self.load_data()[
@@ -182,8 +186,12 @@ class Main:
                         self.select_command = self.call.data
                         self.edit_command()
                     elif self.call.data == 'Редактировать видео':
+                        # if self.call.data not in self.state_stack:
+                        #     self.state_stack[self.call.data] = self.del_buttons_commands
                         self.edit_video()
                     elif self.call.data == 'Редактировать ститистику':
+                        # if self.call.data not in self.state_stack:
+                        #     self.state_stack[self.call.data] = self.del_buttons_commands
                         self.edit_statistic()
                     elif self.call.data in ('Добавить ститистику', 'Добавить видео'):
                         self.add_video_statis()
@@ -212,7 +220,7 @@ class Main:
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
         self.markup.add(InlineKeyboardButton("Начать", callback_data="Начать"))
-        response_text = """Вы находитесь в разделе: <u>Главное меню</u>\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:""",
+        response_text = f"""Вы находитесь в разделе: <u>Главное меню</u>\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:""",
         if self.admin:
             self.markup.add(InlineKeyboardButton("Управление", callback_data="Управление"))
         try:
@@ -225,7 +233,6 @@ class Main:
             )
         except:
             if self.load_data()["commands"]['RedHeads']['users']:
-
                 if any(user in self.load_data()["commands"]['RedHeads']['users'].values() for user in
                        [message.chat.id, str(message.chat.username).replace('@', '')]):
                     with open('fish.jpg', 'rb') as photo:
@@ -304,16 +311,16 @@ class Main:
         )
 
     def del_buttons_commands(self):
-
-        self.data = self.load_data()["commands"]
-        text = ''
         buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
         self.markup = InlineKeyboardMarkup([buttons])
-        if self.call.data != 'Редактирование команд':
-            text = ' Доступ к боту -'
+        text_path = '<u>Редактирование команд</u>'
+        if self.control is not None:
+            text_path = 'Доступ к боту - <u>Закрыть доступ</u>'
+            if self.control:
+                text_path = 'Доступ к боту - <u>Открыть доступ</u>'
             self.markup.add(InlineKeyboardButton("Админы", callback_data="Админы"))
 
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - {text} <u>{self.call.data}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - {text_path}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         bot.edit_message_text(
             new_text,
             chat_id=self.call.message.chat.id,
@@ -342,11 +349,11 @@ class Main:
                 buttons.append(item)
 
         self.markup.add(*buttons)
-
+        select_command = 'Админы' if self.select_command == 'admins' else self.select_command
         save = InlineKeyboardButton("💾 Закрыть доступ!", callback_data='save_dell')
         cancel = InlineKeyboardButton("Отмена!", callback_data='cancel_dell')
         self.markup.add(cancel, save)
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Доступ к боту - Закрыть доступ -  <u>{self.select_command}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Доступ к боту - Закрыть доступ -  <u>{select_command}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
 
         bot.edit_message_text(
             new_text,
@@ -358,8 +365,9 @@ class Main:
     def dell_users_or_admins(self):
         # Загружаем данные из файла
         data = self.load_data()
+        if (len(self.load_data()['admins'].keys()) != 1 and str(self.selected_users).split("_")[
+            -1] != 'admins') and not self.selected_users:
 
-        if (len(self.load_data()['admins'].keys()) != 1 and str(self.selected_users).split("_")[-1] != 'admins') or not self.selected_users:
             if self.selected_users:
                 # Удаляем пользователей
                 for user in self.selected_users:
@@ -398,7 +406,7 @@ class Main:
             else:
                 self.edit_command()
         else:
-            response_text = 'Минимум должне быть 1 админ, пользователь не удален'
+            response_text = 'Должен быть минимум 1 админ, пользователь НЕ УДАЛЕН'
             bot.answer_callback_query(self.call.id, response_text,
                                       show_alert=True)
             self.selected_users = set()
