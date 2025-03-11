@@ -8,7 +8,10 @@
     },
     "commands": {
         "Темп-1": {
-            "users": {},
+            "users": {
+                "Петя": "aqeqewoq",
+                "Вася": "298149121"
+            },
             "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qll0JPN1R39B8idcoQFa5hZMRZAz71qVnVDZxp7l03I/edit?usp=sharing",
             "Состав": "https://volleymsk.ru/ap/members.php?id=9761",
             "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1710",
