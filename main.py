@@ -114,6 +114,9 @@ class Main:
             if self.admin is None:
                 return
 
+            elif self.call.data not in ('Управление', 'Начать') and not self.state_stack:
+                self.show_start_menu(call.message)
+
             elif 'Начать' in [self.call.data] + list(self.state_stack.keys()):
                 if not self.state_stack:
                     self.state_stack[self.call.data] = self.show_start_menu
@@ -168,6 +171,8 @@ class Main:
                                 self.selected_video_stat.add(user_key)  # Добавляем в список
                             self.dell_video_statis()
 
+
+
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
         self.markup.add(InlineKeyboardButton("Начать", callback_data="Начать"))
@@ -182,9 +187,7 @@ class Main:
                 reply_markup=self.markup,
                 parse_mode="HTML"  # Включаем поддержку HTML
             )
-        except ApiException as e:
-            if "Message is not modified" in str(e):
-                return  # Просто игнорируем ошибку, так как сообщение уже актуально
+        except:
             if self.load_data()["commands"]['RedHeads']['users']:
                 if any(user in self.load_data()["commands"]['RedHeads']['users'].values() for user in
                        [message.chat.id, str(message.chat.username).replace('@', '')]):
@@ -264,8 +267,6 @@ class Main:
         )
 
     def del_buttons_commands(self):
-        print(self.call.data)
-        print(list(self.state_stack.keys()))
         buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
         self.markup = InlineKeyboardMarkup([buttons])
 
