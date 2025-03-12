@@ -264,6 +264,8 @@ class Main:
         )
 
     def del_buttons_commands(self):
+        print(self.call.data)
+        print(list(self.state_stack.keys()))
         buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
         self.markup = InlineKeyboardMarkup([buttons])
 
@@ -331,7 +333,8 @@ class Main:
 
             self.del_buttons_commands()
             return
-        elif self.select_command != 'admins' and self.selected_users:
+
+        elif self.select_command and self.selected_users:
             # Удаляем пользователей
             for user in self.selected_users:
                 data_user = user.split("_")
@@ -349,7 +352,7 @@ class Main:
             bot.answer_callback_query(self.call.id, response_text,
                                       show_alert=True)
             self.selected_users = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.state_stack = dict(list(self.state_stack.items())[:-1])
             self.del_buttons_commands()
 
         elif self.selected_video_stat:
