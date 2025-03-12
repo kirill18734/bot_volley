@@ -39,7 +39,9 @@ path_to_users_json = find_file_in_project('user_ids.json',
 path_db = find_file_in_project('data_grafic.db',
                                            path_to_project_folder)
 
-path_to_img = find_file_in_project('months.png',
+path_to_img_volley = find_file_in_project('Volley.jpg',
+                                   path_to_project_folder)
+path_to_img_fish = find_file_in_project('fish.jpg',
                                    path_to_project_folder)
 
 # Преобразуем содержимое файла

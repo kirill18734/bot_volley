@@ -1,7 +1,7 @@
 import json
 import telebot
 from telebot import types
-from config.auto_search_dir import data_config
+from config.auto_search_dir import data_config, path_to_config_json, path_to_img_volley, path_to_img_fish
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.apihelper import ApiException
 
@@ -41,12 +41,12 @@ class Main:
                 pass
 
     def load_data(self):
-        with open('config/config.json', 'r', encoding='utf-8') as file:
+        with open(path_to_config_json, 'r', encoding='utf-8') as file:
             return json.load(file)
 
     def write_data(self, data):
         # Сохраняем данные в файл
-        with open('config/config.json', 'w', encoding='utf-8') as file:
+        with open(path_to_config_json, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
 
     def start_main(self):
@@ -167,7 +167,7 @@ class Main:
                             else:
                                 self.selected_video_stat.add(user_key)  # Добавляем в список
                             self.dell_video_statis()
-                
+
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
         self.markup.add(InlineKeyboardButton("Начать", callback_data="Начать"))
@@ -188,13 +188,13 @@ class Main:
             if self.load_data()["commands"]['RedHeads']['users']:
                 if any(user in self.load_data()["commands"]['RedHeads']['users'].values() for user in
                        [message.chat.id, str(message.chat.username).replace('@', '')]):
-                    with open('fish.jpg', 'rb') as photo:
+                    with open(path_to_img_fish, 'rb') as photo:
                         bot.send_photo(message.chat.id, photo)
                 else:
-                    with open('Volley.jpg', 'rb') as photo:
+                    with open(path_to_img_volley, 'rb') as photo:
                         bot.send_photo(message.chat.id, photo)
             else:
-                with open('Volley.jpg', 'rb') as photo:
+                with open(path_to_img_volley, 'rb') as photo:
                     bot.send_photo(message.chat.id, photo)
 
             bot.send_message(chat_id=message.chat.id, text=response_text, reply_markup=self.markup)
