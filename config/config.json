@@ -1,113 +1,112 @@
 {
-    "my_telegram_bot": {
-        "bot_token": "7463798230:AAFMIHtAsVf60Z0q7r-ha9CbwJpkDUdLuoo",
-        "chat_id": "5444152518"
+  "my_telegram_bot": {
+    "bot_token": "7463798230:AAFMIHtAsVf60Z0q7r-ha9CbwJpkDUdLuoo",
+    "chat_id": "5444152518"
+  },
+  "admins": {
+    "Кирилл": "life2232",
+    "Олеся": "@OlesyaLisica"
+  },
+  "commands": {
+    "Темп-1": {
+      "users": {
+      },
+      "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qll0JPN1R39B8idcoQFa5hZMRZAz71qVnVDZxp7l03I/edit?usp=sharing",
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9761",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1710",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/lHw4MTtiQCeoXQ",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/r8J0jSXSV9L8bw",
+        "Кубок 2023": "https://disk.yandex.ru/d/4z2CAgPH9BKRQg",
+        "Товарищеские игры": "https://disk.yandex.ru/d/ltb9jWzPHe_FAg"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/mLLX__myrqjMoA",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/i7rOtpDd7O5HUg",
+        "Кубок 2023": "https://disk.yandex.ru/d/RbpYNoeSoq6Oow",
+        "Товарищеские игры": "https://disk.yandex.ru/d/RO5BOsK1fvhftQ"
+      }
     },
-    "admins": {
-        "Кирилл": "life2232"
+    "Темп": {
+      "users": {},
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9762",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1707",
+      "Расписание": "https://volleymsk.ru/ap/rasp.php?id=1664",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/lE0Jecce8-0vEw",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/g90gVzWsFdED0Q",
+        "Сезон 2021-2022": "https://disk.yandex.ru/d/hiq_EfSPlZ_zAw",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/jggvgu1u9Gc4Qw"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/uUTnQphW0BqfRw",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/XdF00RTtHNzpdw",
+        "Сезон 2021-2022": "https://disk.yandex.ru/d/nkvGyUzOBbKNeg",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/_1CI7_jWBA1rBQ"
+      }
     },
-    "commands": {
-        "Темп-1": {
-            "users": {
-                "Петя": "aqeqewoq",
-                "Вася": "298149121"
-            },
-            "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qll0JPN1R39B8idcoQFa5hZMRZAz71qVnVDZxp7l03I/edit?usp=sharing",
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9761",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1710",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/lHw4MTtiQCeoXQ",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/r8J0jSXSV9L8bw",
-                "Кубок 2023": "https://disk.yandex.ru/d/4z2CAgPH9BKRQg",
-                "Товарищеские игры": "https://disk.yandex.ru/d/ltb9jWzPHe_FAg"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/mLLX__myrqjMoA",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/i7rOtpDd7O5HUg",
-                "Кубок 2023": "https://disk.yandex.ru/d/RbpYNoeSoq6Oow",
-                "Товарищеские игры": "https://disk.yandex.ru/d/RO5BOsK1fvhftQ"
-            }
-        },
-        "Темп": {
-            "users": {},
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9762",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1707",
-            "Расписание": "https://volleymsk.ru/ap/rasp.php?id=1664",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/lE0Jecce8-0vEw",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/g90gVzWsFdED0Q",
-                "Сезон 2021-2022": "https://disk.yandex.ru/d/hiq_EfSPlZ_zAw",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/jggvgu1u9Gc4Qw"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/uUTnQphW0BqfRw",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/XdF00RTtHNzpdw",
-                "Сезон 2021-2022": "https://disk.yandex.ru/d/nkvGyUzOBbKNeg",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/_1CI7_jWBA1rBQ"
-            }
-        },
-        "Ronin": {
-            "users": {},
-            "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1XhdIELF6UjeGhk43hb6Q58sDSmx1tU2UuJFIGfJ3Wn0/edit?usp=sharing",
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9753",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1717",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/uqvShLW1wkocRw",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/RIpOabTY5muU9A",
-                "Товарищеские игры": "https://disk.yandex.ru/i/E0bEQttA8LDrGw",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/6PRrFjYr3cU32A"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/QGeUl_nd5fdbqg",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/fkE6GnjLmpESBA",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/h2UE9y40UxXxKQ"
-            }
-        },
-        "Престиж": {
-            "users": {},
-            "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1E2baAGXgxbtRor5073rGrwaloDTy5KAoGaFRutsczMo/edit?usp=sharing",
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9893",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1728",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/zrexScoSP9JW-w",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/WJpbOOpde-Bw4w",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/3wrmmjJiiQsALA"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/uWs6WLA8zWVo-g",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/SDmn9RjJymXYxw",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/Q9DW0MbwMUtVyQ"
-            }
-        },
-        "RedHeads": {
-            "users": {},
-            "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1dHU37r3vpUdlKltukRiekGPqCPLV68NRUjA-GEM7704/edit?usp=sharing",
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9660",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1731",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/lekm5rDUomIpsw",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/NKtz_j3Q7_J1OQ"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/Dw4FKAG9d5Yknw",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/flx-4jQ4UYjqzg"
-            }
-        },
-        "Reserve": {
-            "users": {},
-            "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qc71Lmo2PgSn5I0gGNOHTgcNo4oL43tp_BL4dqVwVC8/edit?usp=sharing",
-            "Состав": "https://volleymsk.ru/ap/members.php?id=9894",
-            "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1734",
-            "Видео": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/oqAEZFEWkMFpMg",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/E21vJR8eT4Awnw",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/XnSKR_CRxKcyVQ"
-            },
-            "Статистика": {
-                "Сезон 2024-2025": "https://disk.yandex.ru/d/bWFMz6Wna_czzg",
-                "Сезон 2023-2024": "https://disk.yandex.ru/d/JmImKIQ4pFnOYQ",
-                "Сезон 2022-2023": "https://disk.yandex.ru/d/erdH9RJScp3S8A"
-            }
-        }
+    "Ronin": {
+      "users": {},
+      "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1XhdIELF6UjeGhk43hb6Q58sDSmx1tU2UuJFIGfJ3Wn0/edit?usp=sharing",
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9753",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1717",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/uqvShLW1wkocRw",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/RIpOabTY5muU9A",
+        "Товарищеские игры": "https://disk.yandex.ru/i/E0bEQttA8LDrGw",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/6PRrFjYr3cU32A"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/QGeUl_nd5fdbqg",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/fkE6GnjLmpESBA",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/h2UE9y40UxXxKQ"
+      }
+    },
+    "Престиж": {
+      "users": {},
+      "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1E2baAGXgxbtRor5073rGrwaloDTy5KAoGaFRutsczMo/edit?usp=sharing",
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9893",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1728",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/zrexScoSP9JW-w",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/WJpbOOpde-Bw4w",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/3wrmmjJiiQsALA"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/uWs6WLA8zWVo-g",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/SDmn9RjJymXYxw",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/Q9DW0MbwMUtVyQ"
+      }
+    },
+    "RedHeads": {
+      "users": {},
+      "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1dHU37r3vpUdlKltukRiekGPqCPLV68NRUjA-GEM7704/edit?usp=sharing",
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9660",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1731",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/lekm5rDUomIpsw",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/NKtz_j3Q7_J1OQ"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/Dw4FKAG9d5Yknw",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/flx-4jQ4UYjqzg"
+      }
+    },
+    "Reserve": {
+      "users": {},
+      "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qc71Lmo2PgSn5I0gGNOHTgcNo4oL43tp_BL4dqVwVC8/edit?usp=sharing",
+      "Состав": "https://volleymsk.ru/ap/members.php?id=9894",
+      "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1734",
+      "Видео": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/oqAEZFEWkMFpMg",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/E21vJR8eT4Awnw",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/XnSKR_CRxKcyVQ"
+      },
+      "Статистика": {
+        "Сезон 2024-2025": "https://disk.yandex.ru/d/bWFMz6Wna_czzg",
+        "Сезон 2023-2024": "https://disk.yandex.ru/d/JmImKIQ4pFnOYQ",
+        "Сезон 2022-2023": "https://disk.yandex.ru/d/erdH9RJScp3S8A"
+      }
     }
+  }
 }
