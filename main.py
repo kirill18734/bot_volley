@@ -3,7 +3,6 @@ import telebot
 from telebot import types
 from config.auto_search_dir import data_config, path_to_config_json, path_to_img_volley, path_to_img_fish
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
-from telebot.apihelper import ApiException
 
 bot = telebot.TeleBot(data_config['my_telegram_bot']['bot_token'], parse_mode='HTML')
 
@@ -12,7 +11,8 @@ class Main:
     def __init__(self):
         self.state_stack = {}  # Стек для хранения состояний
         self.selected_users = set()
-        self.selected_video_stat = set()
+        self.selected_video = set()
+        self.selected_stat = set()
         self.keys = []
         self.select_command = None
         self.markup = None
@@ -63,6 +63,9 @@ class Main:
                 # очищаем начальные значения
                 self.keys.clear()
                 self.state_stack.clear()
+                self.selected_users.clear()
+                self.selected_video.clear()
+                self.selected_stat.clear()
                 self.show_start_menu(message)
 
         @bot.message_handler(commands=['back'])
@@ -78,38 +81,49 @@ class Main:
             elif 'Начать' in self.state_stack.keys() and self.keys:
                 self.keys.pop()
                 self.navigate()
-            elif 'Управление' in self.state_stack.keys():
-                if len(self.state_stack) == 1:
-                    self.state_stack.clear()
-                    self.show_start_menu(message)
-                    return
-                elif list(self.state_stack.keys())[-1] in ('Редактировать статистику', 'Редактировать видео'):
-                    del self.state_stack[str(list(self.state_stack.keys())[-1])]
-                    self.edit_command()
-                else:
-                    while self.state_stack:
-                        # Получаем последний ключ
-                        last_key = next(reversed(self.state_stack))
-                        last_function = self.state_stack[last_key]
-                        try:
-
-                            # Попытка вызвать функцию
-                            last_function()
-                            break  # Выход из цикла, если вызов завершился успешно
-                        except:
-                            # Если произошла ошибка, удаляем элемент и продолжаем цикл
-                            del self.state_stack[last_key]
-
-                            # Если возникла ошибка, продолжаем цикл, чтобы вызвать следующую функцию
+                return
+            while self.state_stack:
+                # Получаем последний ключ
+                last_key = next(reversed(self.state_stack))
+                last_function = self.state_stack[last_key]
+                try:
+                    # Попытка вызвать функцию
+                    last_function()
+                    break  # Выход из цикла, если вызов завершился успешно
+                except:
+                    # Если произошла ошибка, удаляем элемент и продолжаем цикл
+                    del self.state_stack[last_key]
             else:
                 self.keys.clear()
                 self.state_stack.clear()
+                self.selected_users.clear()
+                self.selected_video.clear()
+                self.selected_stat.clear()
                 self.show_start_menu(message)
 
         @bot.callback_query_handler(func=lambda call: True)
         def handle_query(call):
             self.call = call
             self.entry(call.message)
+            actions = {
+                "Управление": self.control_buttons,
+                "Доступ к боту": self.main_control,
+                "Открыть доступ": self.open_control,
+                "Закрыть доступ": self.close_control,
+                "💾 Закрыть доступ!": self.dell_users,
+                "cancel_dell": self.dell_users,
+                "Редактирование команд": self.edit_commands,
+                "Редактировать видео": self.edit_video,
+                "Добавить видео": self.add_video,
+                "Удалить видео": self.dell_video,
+                "save_dell_video": self.save_del_video,
+                "cancel_dell_video": self.edit_video,
+                "Редактировать статистику": self.edit_statistic,
+                "Добавить статистику": self.add_static,
+                "Удалить статистику": self.dell_stitistic,
+                "save_dell_stat": self.save_del_statistic,
+                "cancel_dell_stat": self.edit_statistic
+            }
             if self.admin is None:
                 return
 
@@ -122,55 +136,43 @@ class Main:
                 else:
                     self.keys.append(self.call.data)
                 self.navigate()
-            actions = {
-                "Управление": self.control_buttons,
-                "Доступ к боту": self.add_dell_users,
-                "Открыть доступ": self.del_buttons_commands,
-                "Закрыть доступ": self.del_buttons_commands,
-                "Редактирование команд": self.del_buttons_commands,
-                "💾 Закрыть доступ!": self.dell_users_or_admins,
-                "cancel_dell": self.dell_users_or_admins,
-                "Редактировать статистику": self.edit_statistic,
-                "Редактировать видео": self.edit_video,
-                "Добавить видео": self.add_video_statis,
-                "Добавить статистику": self.add_video_statis,
-                "Удалить видео": self.dell_video_statis,
-                "Удалить статистику": self.dell_video_statis,
-                "save_dell_video_stats": self.dell_users_or_admins,
-                "cancel_dell_video_stats": self.dell_users_or_admins
-            }
-            if self.admin:
-                if 'Управление' in [self.call.data] + list(self.state_stack.keys()):
-                    if self.call.data in (actions.keys()):
-                        self.state_stack[self.call.data] = actions[self.call.data]
-                        actions[self.call.data]()
+            else:
 
-                    elif self.call.data in list(self.load_data()["commands"].keys()) + ['admins']:
-                        if list(self.state_stack.keys())[-1] == 'Закрыть доступ':
-                            self.select_command = self.call.data
-                            self.close()
-                        elif list(self.state_stack.keys())[-1] == 'Открыть доступ':
-                            self.select_command = self.call.data
-                            self.open()
-                        elif list(self.state_stack.keys())[-1] == 'Редактирование команд':
-                            self.select_command = self.call.data
-                            self.edit_command()
-                    elif self.call.data.startswith("toggle_"):
-                        user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
-                        if list(self.state_stack.keys())[-1] == 'Закрыть доступ':
-                            if user_key in self.selected_users:
-                                self.selected_users.remove(user_key)  # Убираем из списка
-                            else:
-                                self.selected_users.add(user_key)  # Добавляем в список
-                            self.close()  # Перерисовываем кнопки с обновленными значениями
-                        elif list(self.state_stack.keys())[-1] in ('Удалить видео', 'Удалить статистику'):
-                            if user_key in self.selected_video_stat:
-                                self.selected_video_stat.remove(user_key)  # Убираем из списка
-                            else:
-                                self.selected_video_stat.add(user_key)  # Добавляем в список
-                            self.dell_video_statis()
+                if self.call.data in (actions.keys()):
+                    self.state_stack[self.call.data] = actions[self.call.data]
+                    actions[self.call.data]()
 
-
+                elif self.call.data in list(self.load_data()["commands"].keys()) + ['admins']:
+                    if list(self.state_stack.keys())[-1] == 'Закрыть доступ':
+                        self.select_command = self.call.data
+                        self.close()
+                    elif list(self.state_stack.keys())[-1] == 'Открыть доступ':
+                        self.select_command = self.call.data
+                        self.open()
+                    elif list(self.state_stack.keys())[-1] == 'Редактирование команд':
+                        self.select_command = self.call.data
+                        self.state_stack["test"] = self.edit_command
+                        self.edit_command()
+                elif self.call.data.startswith("toggle_"):
+                    user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
+                    if list(self.state_stack.keys())[-1] == 'Закрыть доступ':
+                        if user_key in self.selected_users:
+                            self.selected_users.remove(user_key)  # Убираем из списка
+                        else:
+                            self.selected_users.add(user_key)  # Добавляем в список
+                        self.close()  # Перерисовываем кнопки с обновленными значениями
+                    elif list(self.state_stack.keys())[-1] == 'Удалить видео':
+                        if user_key in self.selected_video:
+                            self.selected_video.remove(user_key)  # Убираем из списка
+                        else:
+                            self.selected_video.add(user_key)  # Добавляем в список
+                        self.dell_video()
+                    elif list(self.state_stack.keys())[-1] == 'Удалить статистику':
+                        if user_key in self.selected_stat:
+                            self.selected_stat.remove(user_key)  # Убираем из списка
+                        else:
+                            self.selected_stat.add(user_key)  # Добавляем в список
+                        self.dell_stitistic()
 
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
@@ -187,9 +189,9 @@ class Main:
                 parse_mode="HTML"  # Включаем поддержку HTML
             )
         except:
+            users = [name.replace('@', '') for name in self.load_data()["commands"]['RedHeads']["users"].values()]
             if self.load_data()["commands"]['RedHeads']['users']:
-                if any(user in self.load_data()["commands"]['RedHeads']['users'].values() for user in
-                       [message.chat.id, str(message.chat.username).replace('@', '')]):
+                if any(user in users for user in [message.chat.id, str(message.chat.username).replace('@', '')]):
                     with open(path_to_img_fish, 'rb') as photo:
                         bot.send_photo(message.chat.id, photo)
                 else:
@@ -252,7 +254,7 @@ class Main:
             parse_mode="HTML"  # Включаем поддержку HTML
         )
 
-    def add_dell_users(self):
+    def main_control(self):
         self.markup = InlineKeyboardMarkup()
         self.markup.add(InlineKeyboardButton("Открыть доступ", callback_data="Открыть доступ"))
         self.markup.add(InlineKeyboardButton("Закрыть доступ", callback_data="Закрыть доступ"))
@@ -265,26 +267,34 @@ class Main:
             parse_mode="HTML"  # Включаем поддержку HTML
         )
 
-    def del_buttons_commands(self):
+    def open_control(self):
         buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
         self.markup = InlineKeyboardMarkup([buttons])
+        self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Открыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
 
-        text_responce = ''
-        if self.call.data in ('Открыть доступ', 'Закрыть доступ'):
-            text_responce = f"Доступ к боту - <u>{self.call.data}</u>"
-            self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
-        elif self.call.data in ["Доступ к боту", 'Редактирование команд']:
-            text_responce = f"<u>{self.call.data}</u>"
-        elif self.call.data in ['💾 Закрыть доступ!', 'cancel_dell', 'admins'] + list(
-                self.load_data()["commands"].keys()) and list(self.state_stack.keys())[-1] == 'Закрыть доступ':
-            text_responce = f"Доступ к боту - <u>Закрыть доступ</u>"
-            self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
-        elif self.call.data in list(self.load_data()["commands"].keys()) and list(self.state_stack.keys())[
-            -1] in ('Редактирование команд'):
-            text_responce = f"Доступ к боту - <u>Редактирование команд</u>"
-        elif list(self.state_stack.keys())[-1] in ('Редактирование команд'):
-            text_responce = f"Доступ к боту - <u>Редактирование команд</u>"
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - {text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+    def close_control(self):
+        buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
+        self.markup = InlineKeyboardMarkup([buttons])
+        self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Закрыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def edit_commands(self):
+        buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
+        self.markup = InlineKeyboardMarkup([buttons])
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Редактирование команд</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         bot.edit_message_text(
             new_text,
             chat_id=self.call.message.chat.id,
@@ -320,18 +330,23 @@ class Main:
             reply_markup=self.markup
         )
 
-    def dell_users_or_admins(self):
-
+    def dell_users(self):
         # Загружаем данные из файла
         data = self.load_data()
-        if self.select_command == 'admins' and len(self.load_data()['admins'].keys()) == 1 and self.selected_users:
-            response_text = 'Должен быть минимум 1 админ, пользователь НЕ УДАЛЕН'
+        if self.select_command == 'admins' and (
+                len(self.load_data()['admins'].keys()) == 1 or len(self.load_data()['admins'].keys()) == len(
+                self.selected_users)) and self.selected_users:
+            text = 'пользователи НЕ УДАЛЕНЫ' if len(self.selected_users) > 1 else 'пользователь НЕ УДАЛЕН'
+            response_text = f'Должен быть минимум 1 админ, {text}'
             bot.answer_callback_query(self.call.id, response_text,
                                       show_alert=True)
-            self.selected_users = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            if str(list(self.state_stack.keys())[-1]) in ('💾 Закрыть доступ!', 'cancel_dell'):
+                self.state_stack = dict(list(self.state_stack.items())[:-1])
 
-            self.del_buttons_commands()
+            self.close_control()
             return
 
         elif self.select_command and self.selected_users:
@@ -351,37 +366,16 @@ class Main:
             response_text = 'Пользователи удалены' if len(self.selected_users) > 1 else 'Пользователь удален'
             bot.answer_callback_query(self.call.id, response_text,
                                       show_alert=True)
-            self.selected_users = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-1])
-            self.del_buttons_commands()
-
-        elif self.selected_video_stat:
-            # Удаляем пользователей
-            for user in self.selected_video_stat:
-                data_user = user.split("_")
-                if data_user[0] in data["commands"][data_user[-1]][data_user[-2]]:
-                    del data["commands"][data_user[-1]][data_user[-2]][data_user[0]]
-            # Сохраняем обновленные данные обратно в файл
-            self.write_data(data)  # Передаем измененные данные в функцию сохранения
-            response_text = 'Ссылки удалены' if len(self.selected_video_stat) > 1 else 'Ссылка удалена'
-            bot.answer_callback_query(self.call.id, response_text,
-                                      show_alert=True)
-            self.selected_video_stat = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-2])
-            self.edit_command()
-        elif str(list(self.state_stack.keys())[-2]) not in ('Удалить статистику', 'Удалить видео'):
-            self.selected_users = set()
-            self.selected_video_stat = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-2])
-            self.del_buttons_commands()
-        elif str(list(self.state_stack.keys())[-2]) in ('Удалить статистику', 'Удалить видео'):
-            self.selected_users = set()
-            self.selected_video_stat = set()
-            self.state_stack = dict(list(self.state_stack.items())[:-2])
-            if str(list(self.state_stack.keys())[-1]) == 'Удалить статистику':
-                self.edit_statistic()
-            else:
-                self.edit_video()
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            if str(list(self.state_stack.keys())[-1]) in ('💾 Закрыть доступ!', 'cancel_dell'):
+                self.state_stack = dict(list(self.state_stack.items())[:-1])
+            self.close_control()
+        else:
+            if str(list(self.state_stack.keys())[-1]) in ('💾 Закрыть доступ!', 'cancel_dell'):
+                self.state_stack = dict(list(self.state_stack.items())[:-1])
+            self.close_control()
 
     def open(self):
         text = self.select_command if self.select_command != 'admins' else 'Админы'
@@ -434,13 +428,12 @@ class Main:
                                                message_id=message.message_id)
                         except:
                             pass
-                        response_test = 'Ник или id должно быть минимум 4 символа'
+                        response_test = 'Длина имени или id должна быть минимум 4 символа'
                         bot.answer_callback_query(self.call.id, response_test,
                                                   show_alert=True)
                         self.selected_users = set()
                         self.selected_video_stat = set()
-                        self.call.data = 'Открыть доступ'
-                        self.del_buttons_commands()
+                        self.open_control()
                         return
                 self.write_data(data)
                 if len(employee_name) > 1:
@@ -452,29 +445,34 @@ class Main:
                                        message_id=message.message_id)
                 except:
                     pass
-                self.selected_users = set()
-                self.selected_video_stat = set()
-                self.call.data = 'Открыть доступ'
-                self.del_buttons_commands()
+                self.selected_users.clear()
+                self.selected_video.clear()
+                self.selected_stat.clear()
+                self.open_control()
             else:
                 try:
                     bot.delete_message(chat_id=message.chat.id,
                                        message_id=message.message_id)
                 except:
                     pass
+
                 response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз'
                 bot.answer_callback_query(self.call.id, response_test,
                                           show_alert=True)
+                self.selected_users.clear()
+                self.selected_video.clear()
+                self.selected_stat.clear()
+                self.open_control()
         else:
             try:
                 bot.delete_message(chat_id=message.chat.id,
                                    message_id=message.message_id)
             except:
                 pass
-            self.selected_users = set()
-            self.selected_video_stat = set()
-            self.call.data = 'Открыть доступ'
-            self.del_buttons_commands()
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            self.open_control()
 
     def edit_command(self):
         self.markup = InlineKeyboardMarkup()
@@ -502,23 +500,10 @@ class Main:
             parse_mode="HTML"  # Включаем поддержку HTML
         )
 
-    def edit_statistic(self):
-        self.markup = InlineKeyboardMarkup()
-        self.markup.add(InlineKeyboardButton("Добавить статистику", callback_data="Добавить статистику"))
-        self.markup.add(InlineKeyboardButton("Удалить статистику", callback_data="Удалить статистику"))
-        new_text = f"""Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - <u>Редактировать ститистику</u>\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
-        bot.edit_message_text(
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            text=new_text,
-            reply_markup=self.markup,
-            parse_mode="HTML"  # Включаем поддержку HTML
-        )
-
-    def add_video_statis(self):
+    def add_video(self):
         # Редактируем текущее сообщение, чтобы запросить имя сотрудника
         bot.edit_message_text(
-            f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать {self.call.data.split(' ')[-1]} - <u>{self.call.data}</u> .\n\nИспользуй "
+            f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать видео - <u>Добавить видео</u> .\n\nИспользуй "
             f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start "
             f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg"
             f"\nТакже можно добавлять списком несколько ссылок через запятую, "
@@ -529,24 +514,21 @@ class Main:
 
         # Устанавливаем состояние ожидания ответа от пользователя
         bot.register_next_step_handler(self.call.message,
-                                       self.add_list)
+                                       self.add_video_list)
 
-    def add_list(self, message):
-        get_video_stats = 'Видео' if self.call.data.split(' ')[-1] == 'видео' else 'Статистика'
+    def add_video_list(self, message):
         if message.text not in ['/back',
                                 '/start']:
             if ":" in str(message.text):
                 new_video_stats = str(message.text).replace(' ', '').replace('\n', ',').replace(',,', '').replace('@',
                                                                                                                   '').split(
                     ',')  # Получаем введенное имя сотрудника
-
                 data = self.load_data()
                 for new_name in new_video_stats:
                     name, value = new_name.split(":", 1)
                     if len(name) >= 4 and len(value) >= 4 and value[:4] == 'http':
-                        if value not in data["commands"][self.select_command][
-                            get_video_stats].values():
-                            data["commands"][self.select_command][get_video_stats][name] = value
+                        if value not in data["commands"][self.select_command]['Видео'].values():
+                            data["commands"][self.select_command]['Видео'][name] = value
                         else:
                             text = f'Ссылка {value} уже существует'
                             bot.answer_callback_query(self.call.id, text,
@@ -556,20 +538,20 @@ class Main:
                                                    message_id=message.message_id)
                             except:
                                 pass
+                            self.state_stack = dict(list(self.state_stack.items())[:-1])
+                            self.edit_video()
+                            return
                     else:
                         try:
                             bot.delete_message(chat_id=message.chat.id,
                                                message_id=message.message_id)
                         except:
                             pass
-                        response_test = 'Неправильны указаны значения. Ожидается длина ключа и значения минимум 4 знака и ссылка должна начинаться с http'
+                        response_test = 'Неправильны указаны значения. Ожидается длина названия и ссылки минимум 4 знака, и ссылка должна начинаться с http'
                         bot.answer_callback_query(self.call.id, response_test,
                                                   show_alert=True)
                         self.state_stack = dict(list(self.state_stack.items())[:-1])
-                        if get_video_stats == 'Видео':
-                            self.edit_video()
-                        else:
-                            self.edit_statistic()
+                        self.edit_video()
                         return
                 self.write_data(data)
                 text = 'Ссылка добавлена'
@@ -583,24 +565,18 @@ class Main:
                 except:
                     pass
                 self.state_stack = dict(list(self.state_stack.items())[:-1])
-                if get_video_stats == 'Видео':
-                    self.edit_video()
-                else:
-                    self.edit_statistic()
+                self.edit_video()
             else:
                 try:
                     bot.delete_message(chat_id=message.chat.id,
                                        message_id=message.message_id)
                 except:
                     pass
-                response_test = ''
+                response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз'
                 bot.answer_callback_query(self.call.id, response_test,
                                           show_alert=True)
                 self.state_stack = dict(list(self.state_stack.items())[:-1])
-                if get_video_stats == 'Видео':
-                    self.edit_video()
-                else:
-                    self.edit_statistic()
+                self.edit_video()
         else:
             if message.message_id:
                 try:
@@ -609,32 +585,25 @@ class Main:
                 except:
                     pass
             self.state_stack = dict(list(self.state_stack.items())[:-1])
-            if get_video_stats == 'Видео':
-                self.edit_video()
-            else:
-                self.edit_statistic()
+            self.edit_video()
 
-    def dell_video_statis(self):
+    def dell_video(self):
         self.markup = InlineKeyboardMarkup()
         buttons = []
-        text = ['Статистика', 'статистику']
-
-        if list(self.state_stack.keys())[-2] == 'Редактировать видео':
-            text = ['Видео', 'видео']
-        for keys, value in self.load_data()["commands"][self.select_command][text[0]].items():
-            is_selected = f"{keys}_{text[0][:5]}_{self.select_command}" in self.selected_video_stat  # Проверяем, выбран ли пользователь
+        for keys, value in self.load_data()["commands"][self.select_command]["Видео"].items():
+            is_selected = f"{keys}_Видео_{self.select_command}" in self.selected_video  # Проверяем, выбран ли пользователь
             icon = "✅" if is_selected else "❌"  # Меняем иконку
             button_text = f"{icon} {keys}"
             item = types.InlineKeyboardButton(button_text,
-                                              callback_data=f"toggle_{keys}_{text[0][:5]}_{self.select_command}")
+                                              callback_data=f"toggle_{keys}_Видео_{self.select_command}")
             buttons.append(item)
 
         self.markup.add(*buttons)
 
-        save = InlineKeyboardButton("💾 Сохранить!", callback_data='save_dell_video_stats')
-        cancel = InlineKeyboardButton("Отмена!", callback_data='cancel_dell_video_stats')
+        save = InlineKeyboardButton("💾 Сохранить!", callback_data='save_dell_video')
+        cancel = InlineKeyboardButton("Отмена!", callback_data='cancel_dell_video')
         self.markup.add(cancel, save)
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать {text[-1]} - <u>Удалить {text[-1]}</u> .\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать видео - <u>Удалить видео</u> .\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
 
         bot.edit_message_text(
             new_text,
@@ -642,6 +611,181 @@ class Main:
             message_id=self.call.message.message_id,
             reply_markup=self.markup
         )
+
+    def save_del_video(self):
+
+        data = self.load_data()
+        if self.selected_video:
+            # Удаляем пользователей
+            for user in self.selected_video:
+                data_user = user.split("_")
+                if data_user[0] in data["commands"][data_user[-1]]["Видео"]:
+                    del data["commands"][data_user[-1]]["Видео"][data_user[0]]
+            # Сохраняем обновленные данные обратно в файл
+            self.write_data(data)  # Передаем измененные данные в функцию сохранения
+            response_text = 'Ссылки удалены' if len(self.selected_video) > 1 else 'Ссылка удалена'
+            bot.answer_callback_query(self.call.id, response_text,
+                                      show_alert=True)
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.edit_video()
+        else:
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.edit_video()
+
+    def edit_statistic(self):
+        self.markup = InlineKeyboardMarkup()
+        self.markup.add(InlineKeyboardButton("Добавить статистику", callback_data="Добавить статистику"))
+        self.markup.add(InlineKeyboardButton("Удалить статистику", callback_data="Удалить статистику"))
+        new_text = f"""Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - <u>Редактировать ститистику</u>\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+        bot.edit_message_text(
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            text=new_text,
+            reply_markup=self.markup,
+            parse_mode="HTML"  # Включаем поддержку HTML
+        )
+
+    def add_static(self):
+        # Редактируем текущее сообщение, чтобы запросить имя сотрудника
+        bot.edit_message_text(
+            f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать статистику - <u>Добавить статистику</u> .\n\nИспользуй "
+            f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start "
+            f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg"
+            f"\nТакже можно добавлять списком несколько ссылок через запятую, "
+            f"пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg",
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id
+        )
+        # Устанавливаем состояние ожидания ответа от пользователя
+        bot.register_next_step_handler(self.call.message,
+                                       self.add_static_list)
+
+    def add_static_list(self, message):
+        if message.text not in ['/back',
+                                '/start']:
+            if ":" in str(message.text):
+                new_video_stats = str(message.text).replace(' ', '').replace('\n', ',').replace(',,', '').replace('@',
+                                                                                                                  '').split(
+                    ',')  # Получаем введенное имя сотрудника
+                data = self.load_data()
+                for new_name in new_video_stats:
+                    name, value = new_name.split(":", 1)
+                    if len(name) >= 4 and len(value) >= 4 and value[:4] == 'http':
+                        if value not in data["commands"][self.select_command]['Статистика'].values():
+                            data["commands"][self.select_command]['Статистика'][name] = value
+                        else:
+                            text = f'Ссылка {value} уже существует'
+                            bot.answer_callback_query(self.call.id, text,
+                                                      show_alert=True)
+                            try:
+                                bot.delete_message(chat_id=message.chat.id,
+                                                   message_id=message.message_id)
+                            except:
+                                pass
+                            self.state_stack = dict(list(self.state_stack.items())[:-1])
+                            self.edit_statistic()
+                            return
+                    else:
+                        try:
+                            bot.delete_message(chat_id=message.chat.id,
+                                               message_id=message.message_id)
+                        except:
+                            pass
+                        response_test = 'Неправильны указаны значения. Ожидается длина названия и ссылки минимум 4 знака, и ссылка должна начинаться с http'
+                        bot.answer_callback_query(self.call.id, response_test,
+                                                  show_alert=True)
+                        self.state_stack = dict(list(self.state_stack.items())[:-1])
+                        self.edit_statistic()
+                        return
+                self.write_data(data)
+                text = 'Ссылка добавлена'
+                if len(new_video_stats) > 1:
+                    text = "Ссылки добавлены"
+                bot.answer_callback_query(self.call.id, text,
+                                          show_alert=True)
+                try:
+                    bot.delete_message(chat_id=message.chat.id,
+                                       message_id=message.message_id)
+                except:
+                    pass
+                self.state_stack = dict(list(self.state_stack.items())[:-1])
+                self.edit_statistic()
+            else:
+                try:
+                    bot.delete_message(chat_id=message.chat.id,
+                                       message_id=message.message_id)
+                except:
+                    pass
+                response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз'
+                bot.answer_callback_query(self.call.id, response_test,
+                                          show_alert=True)
+                self.state_stack = dict(list(self.state_stack.items())[:-1])
+                self.edit_statistic()
+        else:
+            if message.message_id:
+                try:
+                    bot.delete_message(chat_id=message.chat.id,
+                                       message_id=message.message_id)
+                except:
+                    pass
+            self.state_stack = dict(list(self.state_stack.items())[:-1])
+            self.edit_statistic()
+
+    def dell_stitistic(self):
+        self.markup = InlineKeyboardMarkup()
+        buttons = []
+        for keys, value in self.load_data()["commands"][self.select_command]["Статистика"].items():
+            is_selected = f"{keys}_Статистика_{self.select_command}" in self.selected_stat  # Проверяем, выбран ли пользователь
+            icon = "✅" if is_selected else "❌"  # Меняем иконку
+            button_text = f"{icon} {keys}"
+            item = types.InlineKeyboardButton(button_text,
+                                              callback_data=f"toggle_{keys}_Статистика_{self.select_command}")
+            buttons.append(item)
+
+        self.markup.add(*buttons)
+
+        save = InlineKeyboardButton("💾 Сохранить!", callback_data='save_dell_stat')
+        cancel = InlineKeyboardButton("Отмена!", callback_data='cancel_dell_stat')
+        self.markup.add(cancel, save)
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать статистику - <u>Удалить статистику</u> .\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def save_del_statistic(self):
+        data = self.load_data()
+        if self.selected_stat:
+            # Удаляем пользователей
+            for user in self.selected_stat:
+                data_user = user.split("_")
+                if data_user[0] in data["commands"][data_user[-1]]["Статистика"]:
+                    del data["commands"][data_user[-1]]["Статистика"][data_user[0]]
+            # Сохраняем обновленные данные обратно в файл
+            self.write_data(data)  # Передаем измененные данные в функцию сохранения
+            response_text = 'Ссылки удалены' if len(self.selected_stat) > 1 else 'Ссылка удалена'
+            bot.answer_callback_query(self.call.id, response_text,
+                                      show_alert=True)
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.edit_statistic()
+        else:
+            self.selected_users.clear()
+            self.selected_video.clear()
+            self.selected_stat.clear()
+            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            self.edit_statistic()
 
 
 if __name__ == "__main__":
