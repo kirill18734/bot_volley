@@ -23,11 +23,10 @@ class Main:
     def entry(self, message):
         # Изменить условия фильтрования доступа :
 
-        admins = list(value for value in self.load_data()["admins"].values())
-        users = [name for command in self.load_data()["commands"].keys() for name
+        admins = list(value.replace('@', '') for value in self.load_data()["admins"].values())
+        users = [name.replace('@', '') for command in self.load_data()["commands"].keys() for name
                  in self.load_data()["commands"][command]["users"].values()]
         username = str(message.chat.username).replace('@', '')
-
         if any(user in admins for user in [message.chat.id, username]):
             self.admin = True
         elif any(user in users for user in [message.chat.id, username]):
