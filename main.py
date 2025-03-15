@@ -145,7 +145,9 @@ class Main:
                 "save_send_survey": self.save,
                 "Удалить опрос": self.del_survey,
                 "cansel_survey": self.the_survey,
-                "dell_survey": self.save_dell_survey
+                "dell_survey": self.save_dell_survey,
+                "Редактировать опрос": self.edit_survey,
+                "typeedit_survey": self.typeedit_survey
             }
 
             if self.admin is None:
@@ -290,6 +292,14 @@ class Main:
                 elif self.call.data == "prevdell" and self.current_index > 0:
                     self.current_index -= 1
                     self.del_survey()
+                elif self.call.data == "nextedit" and self.current_index < len(self.surveys) - 1:
+                    self.current_index += 1
+                    self.edit_survey()
+                elif self.call.data == "prevedit" and self.current_index > 0:
+                    self.current_index -= 1
+                    self.edit_survey()
+                elif self.call.data.startswith("Тип_edit_"):
+                    self.save_edit()
 
     def show_start_menu(self, message):
         self.markup = InlineKeyboardMarkup()
@@ -1202,6 +1212,84 @@ class Main:
         self.selected_stat.clear()
         self.current_index = 0
         self.the_survey()
+
+    def edit_survey(self):
+        self.data = self.load_data()
+        """Отображает текущий опрос с кнопками навигации"""
+        self.surveys = list(self.data["surveys"].items())
+        if not self.surveys:
+            response_text = 'Нет доступных опросов.'
+            bot.answer_callback_query(self.call.id, response_text, show_alert=True)
+            return
+
+        survey_id, survey_data = self.surveys[self.current_index]
+        text_responce = (
+            f"Вы находитесь в разделе: Главное меню - Управление - <u>Редактировать опрос</u>.\n\n"
+        )
+
+        text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items())
+        text_responce += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
+                          'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
+
+        navigation_buttons = [
+            InlineKeyboardButton("<", callback_data="prevedit") if self.current_index > 0 else None,
+            InlineKeyboardButton(">", callback_data="nextedit") if self.current_index < len(self.surveys) - 1 else None
+        ]
+        navigation_buttons = [btn for btn in navigation_buttons if btn]  # Убираем None
+
+        edit_buttons = [
+            InlineKeyboardButton("Изменить тип", callback_data="typeedit_survey"),
+            InlineKeyboardButton("Изменить дату", callback_data="dateedit_survey"),
+            InlineKeyboardButton("Изменить время", callback_data="timeedit_survey"),
+            InlineKeyboardButton("Изменить адрес", callback_data="addressedit_survey"),
+            InlineKeyboardButton("Изменить цену", callback_data="priceedit_survey"),
+            InlineKeyboardButton("Изменить получателей", callback_data="recieptsedit_survey"),
+            InlineKeyboardButton("Изменить дату отправки опроса", callback_data="datesend_survey"),
+            InlineKeyboardButton("Изменить время отправки опроса", callback_data="timesend_survey")
+        ]
+
+        # Разбиваем edit_buttons на строки по 3 кнопки
+        edit_buttons_layout = [edit_buttons[i:i + 3] for i in range(0, len(edit_buttons), 3)]
+
+        cancel_save_buttons = [
+            [InlineKeyboardButton("Отмена", callback_data="cansel_edit_survey"),
+             InlineKeyboardButton("Сохранить", callback_data="save_edit_survey")]
+        ]
+
+        markup = InlineKeyboardMarkup([navigation_buttons] + edit_buttons_layout + cancel_save_buttons)
+
+        bot.edit_message_text(
+            text_responce,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=markup,
+            parse_mode="HTML"
+        )
+
+    def typeedit_survey(self):
+        buttons = [InlineKeyboardButton(key, callback_data=f"Тип_edit_{key}") for key in
+                   ["Игра", "Тренировка", "Товарищеская игра"]]
+        self.markup = InlineKeyboardMarkup([buttons])
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить тип</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def save_edit(self):
+        data = self.load_data()
+        key_del = self.surveys[self.current_index][0]
+        new_value = self.call.data.split("_")
+
+        data["surveys"][key_del][new_value[0]] = new_value[-1]
+        self.write_data(data)  # Передаем измененные данные в функцию сохранения
+        response_text = f'{new_value[0]} изменен'
+        bot.answer_callback_query(self.call.id, response_text,
+                                  show_alert=True)
+        self.edit_survey()
 
 
 if __name__ == "__main__":
