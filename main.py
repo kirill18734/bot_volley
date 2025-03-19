@@ -1,23 +1,33 @@
 import json
-from time import sleep
-
+import schedule as schedule
 import telebot
 from telebot import types
 from config.auto_search_dir import data_config, path_to_config_json, path_to_img_volley, path_to_img_fish
-from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
+from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import calendar
 import datetime
 import uuid
-import threading
+from datetime import datetime, timedelta
 
 bot = telebot.TeleBot(data_config['my_telegram_bot']['bot_token'], parse_mode='HTML')
 tmonth_names = {
     1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель", 5: "Май", 6: "Июнь",
     7: "Июль", 8: "Август", 9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
 }
-
+# Список дней недели на русском
+days_week = [
+    "Понедельник",  # 0
+    "Вторник",  # 1
+    "Среда",  # 2
+    "Четверг",  # 3
+    "Пятница",  # 4
+    "Суббота",  # 5
+    "Воскресенье"  # 6
+]
 # Словарь для хранения пользователей, проголосовавших за каждый вариант
 poll_results = {}
+
+
 class Main:
     def __init__(self):
         self.state_stack = {}  # Стек для хранения состояний
@@ -37,110 +47,63 @@ class Main:
         self.markup = None
         self.call = None
         self.admin = None
-        self.second_thread()
+        self.survey()
         self.start_main()
 
-    def second_thread(self):
-        second_thread = threading.Thread(target=self.second_loop, daemon=True)
-        second_thread.start()
+    # отправка, закрытие, получение результатов опроса
+    def survey(self):
+        data = self.load_data()
+        if data['surveys']:  # Проверяем, есть ли ключ 'surveys'
+            for key, value in data['surveys'].items():
 
-    def second_loop(self):
-        while True:
-            now = datetime.datetime.now()
-            with open(path_to_config_json, 'r', encoding='utf-8') as file:
-                data = json.load(file)
+                users = [str(user).replace("@", '') for command in str(value['Получатели опроса']).replace("Админы",
+                                                                                                           "admins").split(
+                    ',') for user in
+                         (data['admins'].values() if command == "admins" else data['commands'][command][
+                             "users"].values())]
+                # Заданная дата
+                target_date = datetime.strptime(f"{value['Дата отправки опроса']} {value['Время отправки опроса']}",
+                                                "%d-%m-%Y %H:%M")
 
-            if data.get('surveys'):  # Проверяем, есть ли ключ 'surveys'
-                for survey in data['surveys'].keys():
-                    # Преобразуем текущую дату в объект datetime.date()
-                    current_date = now.date()
-                    current_time = now.time()
-                    # Оставляем только часы и минуты
-                    current_time_str = current_time.strftime("%H:%M")
-                    # Получаем дату из JSON и конвертируем в datetime.date()
-                    survey_date = datetime.datetime.strptime(data['surveys'][survey]['Дата тренировки/игры'],
-                                                             "%d-%m-%Y").date()
-                    # Получаем время тренировки/игры
-                    train_time = str(data['surveys'][survey]['Время тренировки/игры']).split(" - ")[0]
+                target_date2 = datetime.strptime(
+                    f"{value['Дата тренировки/игры']} {str(value['Время тренировки/игры']).split(' - ')[0]}",
+                    "%d-%m-%Y %H:%M"
+                ) - timedelta(minutes=30)
+                day_index = days_week[target_date2.weekday()]
 
-                    # Преобразуем строку в объект datetime
-                    time_obj = datetime.datetime.strptime(train_time, "%H:%M")
+                current_date = datetime.now().replace(second=0, microsecond=0)
+                # отправка опроса
+                if target_date == current_date and target_date2 >= current_date and value[
+                    'Опрос отправлен'] == 'Нет' and value['Получатели опроса']:
+                    question = f"{value['Тип']} {day_index} c {str(value['Время тренировки/игры']).replace(' - ', ' до ')} стоймость {value['Цена']}р"
+                    # Получение дня недели
 
-                    # Отнимаем 30 минут
-                    new_time = time_obj - datetime.timedelta(minutes=30)
+                    options = ["Буду", "+1"]
+                    for user in users:
 
-                    # Форматируем результат обратно в строку
-                    edittime = new_time.strftime("%H:%M")
-                    survey_time = datetime.datetime.strptime(edittime, "%H:%M").time()
-                    survey_time = survey_time.strftime("%H:%M")
+                        try:
+                            user_chat = user.split("_")[-1]
+                            poll_message = bot.send_poll(
+                                chat_id=user_chat,
+                                question=question,
+                                options=options,
+                                close_date=target_date2,
+                                is_anonymous=False,  # Ответы будут видны боту
+                                allows_multiple_answers=False,
+                                explanation_parse_mode='HTML'
+                            )
 
-                    survey_send_date = datetime.datetime.strptime(data['surveys'][survey]['Дата отправки опроса'],
-                                                                  "%d-%m-%Y").date()
+                            value['Опрос отправлен'] = "Да"
+                            value["Опрос открыт"] = "Да"
+                            value['id опроса'] = poll_message.poll.id
+                            self.write_data(data)
 
-                    survey_send_time = data['surveys'][survey]['Время отправки опроса']
-                    # Проверяем условия
-                    if current_date == survey_send_date and now.strftime(
-                            "%H:%M") == survey_send_time and current_date >= survey_date and data['surveys'][survey][
-                        'Опрос отправлен'] == "Нет":
-                        if data['surveys'][survey]['Получатели опроса']:
-                            list_command = str(data['surveys'][survey]['Получатели опроса']).replace("Админы",
-                                                                                                     "admins").split(
-                                ',')
-                            users = [str(user).replace("@", '') for command in list_command for user in (
-                                data['admins'].values() if command == "admins" else data['commands'][command][
-                                    "users"].values())]
-                            # Данные опроса
-                            question = f"""{data['surveys'][survey]['Тип']}\nДата: {data['surveys'][survey]['Дата тренировки/игры']}\nВремя: {data['surveys'][survey]['Время тренировки/игры']}\nАдрес: {data['surveys'][survey]['Адрес']}\nЦена: {data['surveys'][survey]['Цена']}"""
-                            print(question)
-
-                            options = ["Буду", "+1"]
-
-                            if users:
-                                for user in users:
-                                    try:
-                                        user_chat = user.split("_")[-1]
-                                        # poll_message = bot.send_poll(user_chat, question, options, is_anonymous=True)
-                                        # Отправляем опрос
-                                        poll_message = bot.send_poll(
-                                            chat_id=user_chat,
-                                            question=question,
-                                            options=options,
-                                            is_anonymous=False,  # Ответы будут видны боту
-                                            allows_multiple_answers=False
-                                        )
-
-                                        # Сохраняем ID опроса
-                                        poll_results[poll_message.poll.id] = {option: [] for option in options}
-                                        data['surveys'][survey]['Опрос отправлен'] = "Да"
-                                        data['surveys'][survey]["Опрос открыт"] = "Да"
-                                        data['surveys'][survey]['id опроса'] = poll_message.message_id
-                                        write_data(data)
-
-                                    except Exception as e:
-                                        print(f"Ошибка при отправке опроса пользователю {user}: {e}")
-
-                    elif current_date <= survey_date and survey_time <= current_time_str and data['surveys'][survey][
-                        "Опрос открыт"] == "Да":
-                        if "Да" in (
-                                data['surveys'][survey]['Опрос открыт'], data['surveys'][survey]['Опрос отправлен']):
-
-                            list_command = str(data['surveys'][survey]['Получатели опроса']).replace("Админы",
-                                                                                                     "admins").split(
-                                ',')
-                            users = [str(user).replace("@", '') for command in list_command for user in (
-                                data['admins'].values() if command == "admins" else data['commands'][command][
-                                    "users"].values())]
-                            if users:
-                                for user in users:
-                                    try:
-                                        user_chat = user.split("_")[-1]
-                                        id_surveys = data['surveys'][survey]['id опроса']
-                                        bot.stop_poll(chat_id=user_chat, message_id=id_surveys)
-                                        data['surveys'][survey]["Опрос открыт"] = "Нет"
-                                        write_data(data)
-                                    except Exception as e:
-                                        print(f"Ошибка при отправке опроса пользователю {user}: {e}")
-            sleep(5)
+                        except Exception as e:
+                            print(f"Ошибка при отправке опроса пользователю {user}: {e}")
+                # опрос автоматически закрывается, когда наступает время закрытие, то изменяем также значения
+                elif target_date2 <= current_date and 'Да' in (value['Опрос открыт'], value['Опрос отправлен']):
+                    value["Опрос открыт"] = "Нет"
+                    self.write_data(data)
 
     def entry(self, message):
         # Изменить условия фильтрования доступа :
@@ -192,36 +155,49 @@ class Main:
     def start_main(self):
         bot.set_my_commands([BotCommand("start", "В начало"), BotCommand("back", "Назад")])
 
-        @bot.poll_answer_handler()
-        def handle_poll_answer(poll_answer):
-            poll_id = poll_answer.poll_id
-            user_id = poll_answer.user.id
-            user_name = poll_answer.user.first_name
+        @bot.poll_answer_handler(func=lambda answer: True)
+        def handle_poll_answer(answer):
+            user_id = answer.user.id
+            poll_id = answer.poll_id
+            option_ids = answer.option_ids
+            # Пользователь 5444152518 ответил на опрос 5395770184218708712: [0]
+            # Пользователь 5444152518 ответил на опрос 5395770184218708712: []
+            # Пользователь 5444152518 ответил на опрос 5395770184218708712: [1]
 
-            if poll_id in poll_results:
-                # Удаляем пользователя из всех вариантов, так как он мог передумать
-                for option in poll_results[poll_id]:
-                    if user_name in poll_results[poll_id][option]:
-                        poll_results[poll_id][option].remove(user_name)
+            # Обрабатываем ответы
+            print(f"Пользователь {user_id} ответил на опрос {poll_id}: {option_ids}")
 
-                # Если пользователь выбрал новый вариант, добавляем его
-                if poll_answer.option_ids:
-                    option_text = list(poll_results[poll_id].keys())[poll_answer.option_ids[0]]
-                    poll_results[poll_id][option_text].append(user_name)
-                    print(f"✅ {user_name} выбрал: {option_text}")
-                else:
-                    print(f"❌ {user_name} убрал свой голос.")
+        # @bot.poll_answer_handler()
+        # def handle_poll_answer(poll_answer):
+        #     poll_id = poll_answer.poll_id
+        #     user_id = poll_answer.user.id
+        #     user_name = poll_answer.user.first_name
+        #
+        #     if poll_id in poll_results:
+        #         #         # Удаляем пользователя из всех вариантов, так как он мог передумать
+        #         for option in poll_results[poll_id]:
+        #             if user_name in poll_results[poll_id][option]:
+        #                 poll_results[poll_id][option].remove(user_name)
+        #         #
+        #         # Если пользователь выбрал новый вариант, добавляем его
+        #         if poll_answer.option_ids:
+        #             option_text = list(poll_results[poll_id].keys())[poll_answer.option_ids[0]]
+        #             poll_results[poll_id][option_text].append(user_name)
+        #             print(f"✅ {user_name} выбрал: {option_text}")
+        #         else:
+        #             print(f"❌ {user_name} убрал свой голос.")
 
-        @bot.message_handler(commands=['results'])
-        def show_results(message):
-            results_text = "📊 *Результаты опроса:*\n"
-            for poll_id, options in poll_results.items():
-                for option, users in options.items():
-                    results_text += f"{option}: {', '.join(users) if users else 'никто не выбрал'}\n"
+        # @bot.message_handler(commands=['results'])
+        # def show_results(message):
+        #     results_text = "📊 *Результаты опроса:*\n"
+        #     for poll_id, options in poll_results.items():
+        #         for option, users in options.items():
+        #             results_text += f"{option}: {', '.join(users) if users else 'никто не выбрал'}\n"
+        #
+        #     bot.send_message(message.chat.id, results_text, parse_mode="Markdown")
+        #
+        #     bot.send_message(message.chat.id, results_text)
 
-            bot.send_message(message.chat.id, results_text, parse_mode="Markdown")
-
-            bot.send_message(message.chat.id, results_text)
         @bot.message_handler(commands=['start'])
         def handle_start(message):
             if message.message_id:
@@ -1698,20 +1674,10 @@ class Main:
         self.edit_survey()
 
 
-def write_data(data):
-    # Сохраняем данные в файл
-    with open(path_to_config_json, 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-
-        # Здесь можно добавить нужную логику
-
-
-if __name__ == "__main__":
-    # Создаем и запускаем второй поток
-
-    while True:
-        try:
-            Main()
-            bot.infinity_polling(timeout=90, long_polling_timeout=5)
-        except:
-            continue
+while True:
+    try:
+        schedule.run_pending()
+        Main()
+        bot.infinity_polling(timeout=90, long_polling_timeout=5)
+    except:
+        continue
