@@ -159,44 +159,30 @@ class Main:
         def handle_poll_answer(answer):
             user_id = answer.user.id
             poll_id = answer.poll_id
-            option_ids = answer.option_ids
-            # Пользователь 5444152518 ответил на опрос 5395770184218708712: [0]
-            # Пользователь 5444152518 ответил на опрос 5395770184218708712: []
-            # Пользователь 5444152518 ответил на опрос 5395770184218708712: [1]
+            option_ids = 0 if not answer.option_ids else '+1' if answer.option_ids[0] == 1 else 'Буду'
 
-            # Обрабатываем ответы
-            print(f"Пользователь {user_id} ответил на опрос {poll_id}: {option_ids}")
+            data = self.load_data()
+            if data['surveys']:  # Проверяем, есть ли ключ 'surveys'
+                for key, value in data['surveys'].items():
+                    if value["id опроса"] == str(poll_id):
+                        for command in str(value['Получатели опроса']).split(','):
 
-        # @bot.poll_answer_handler()
-        # def handle_poll_answer(poll_answer):
-        #     poll_id = poll_answer.poll_id
-        #     user_id = poll_answer.user.id
-        #     user_name = poll_answer.user.first_name
-        #
-        #     if poll_id in poll_results:
-        #         #         # Удаляем пользователя из всех вариантов, так как он мог передумать
-        #         for option in poll_results[poll_id]:
-        #             if user_name in poll_results[poll_id][option]:
-        #                 poll_results[poll_id][option].remove(user_name)
-        #         #
-        #         # Если пользователь выбрал новый вариант, добавляем его
-        #         if poll_answer.option_ids:
-        #             option_text = list(poll_results[poll_id].keys())[poll_answer.option_ids[0]]
-        #             poll_results[poll_id][option_text].append(user_name)
-        #             print(f"✅ {user_name} выбрал: {option_text}")
-        #         else:
-        #             print(f"❌ {user_name} убрал свой голос.")
+                            for user, id_ in (
+                                    data['commands'][command]['users'].items() if command != 'Админы' else data[
+                                        'admins'].items()):
+                                # Ваш код здесь
 
-        # @bot.message_handler(commands=['results'])
-        # def show_results(message):
-        #     results_text = "📊 *Результаты опроса:*\n"
-        #     for poll_id, options in poll_results.items():
-        #         for option, users in options.items():
-        #             results_text += f"{option}: {', '.join(users) if users else 'никто не выбрал'}\n"
-        #
-        #     bot.send_message(message.chat.id, results_text, parse_mode="Markdown")
-        #
-        #     bot.send_message(message.chat.id, results_text)
+                                if str(user_id) == id_.split('_')[-1]:
+                                    if command not in value["Отметились"]:
+                                        value["Отметились"][command] = {}
+
+                                    value["Отметились"][command][f'{user}({user_id})'] = option_ids
+                                    value['Количество отметившихся'] = len(
+                                        set(user for command in value["Отметились"].keys()
+                                            for user, val in value["Отметились"][command].items()
+                                            if val != 0))
+
+                        self.write_data(data)
 
         @bot.message_handler(commands=['start'])
         def handle_start(message):
@@ -286,7 +272,8 @@ class Main:
                 "addressedit_survey": self.addressedit_survey,
                 "priceedit_survey": self.priceedit_survey,
                 "datesend_survey": self.datesend_survey,
-                "timesend_survey": self.timesend_survey
+                "timesend_survey": self.timesend_survey,
+                "Результаты опросов": self.result_surveys
 
             }
 
@@ -454,6 +441,12 @@ class Main:
                 elif self.call.data == "mainprevedit" and self.current_index > 0:
                     self.current_index -= 1
                     self.edit_survey()
+                elif self.call.data == "mainnextres" and self.current_index < len(self.surveys) - 1:
+                    self.current_index += 1
+                    self.result_surveys()
+                elif self.call.data == "mainprevres" and self.current_index > 0:
+                    self.current_index -= 1
+                    self.result_surveys()
                 elif self.call.data.startswith("editsurvey_"):
                     self.save_edit()
                 elif call.data.startswith("prevedit_") or call.data.startswith("nextedit_"):
@@ -1325,7 +1318,7 @@ class Main:
         data = self.load_data()
         self.user_data[self.unique_id]['Опрос открыт'] = "Нет"
         self.user_data[self.unique_id]['Опрос отправлен'] = "Нет"
-        self.user_data[self.unique_id]['Отметились'] = ""
+        self.user_data[self.unique_id]['Отметились'] = {}
         self.user_data[self.unique_id]['Количество отметившихся'] = 0
         self.user_data[self.unique_id]['id опроса'] = 0
 
@@ -1412,7 +1405,8 @@ class Main:
         )
 
         text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items())
+        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
+            'Отметились', 'Количество отметившихся', 'id опроса', 'Опрос отправлен', 'Опрос открыт'))
         text_responce += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
                           'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
 
@@ -1672,6 +1666,53 @@ class Main:
         bot.answer_callback_query(self.call.id, response_text,
                                   show_alert=True)
         self.edit_survey()
+
+    def format_dict(self, d, indent=0):
+        result = ""
+        for key, value in d.items():
+            if isinstance(value, dict):
+                result += " " * indent + f"{key}:\n" + self.format_dict(value, indent + 4)
+            else:
+                result += " " * indent + f"{key}: {value}\n"
+        return result
+
+    def result_surveys(self):
+        self.data = self.load_data()
+        """Отображает текущий опрос с кнопками навигации"""
+        self.surveys = list(self.data["surveys"].items())
+        if not self.surveys:
+            response_text = 'Нет доступных опросов.'
+            bot.answer_callback_query(self.call.id, response_text, show_alert=True)
+            return
+
+        survey_id, survey_data = self.surveys[self.current_index]
+        text_responce = (
+            f"Вы находитесь в разделе: Главное меню - Управление - <u>Результаты опросов</u>.\n\n"
+        )
+
+        text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in ('id опроса', 'Отметились'))
+        text_responce += "\n"
+        text_responce += self.format_dict(survey_data['Отметились'])
+        text_responce += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
+                          'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
+
+        navigation_buttons = [
+            InlineKeyboardButton("<", callback_data="mainprevres") if self.current_index > 0 else None,
+            InlineKeyboardButton(">", callback_data="mainnextres") if self.current_index < len(
+                self.surveys) - 1 else None
+        ]
+        navigation_buttons = [btn for btn in navigation_buttons if btn]  # Убираем None
+
+        self.markup = InlineKeyboardMarkup([navigation_buttons])
+
+        bot.edit_message_text(
+            text_responce,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup,
+            parse_mode="HTML"
+        )
 
 
 while True:
