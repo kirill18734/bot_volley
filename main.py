@@ -5,7 +5,6 @@ from telebot import types
 from config.auto_search_dir import data_config, path_to_config_json, path_to_img_volley, path_to_img_fish
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import calendar
-import datetime
 import uuid
 from datetime import datetime, timedelta
 
@@ -75,7 +74,8 @@ class Main:
                 # отправка опроса
                 if target_date == current_date and target_date2 >= current_date and value[
                     'Опрос отправлен'] == 'Нет' and value['Получатели опроса']:
-                    question = f"{value['Тип']} {day_index} c {str(value['Время тренировки/игры']).replace(' - ', ' до ')} стоймость {value['Цена']}р"
+                    # question = f"{value['Тип']} {day_index} c {str(value['Время тренировки/игры']).replace(' - ', ' до ')} стоймость {value['Цена']}р"
+                    question = f"{value['Тип']} {value['Дата тренировки/игры']} ({day_index}) c {str(value['Время тренировки/игры']).replace(' - ', ' до ')} стоймость {value['Цена']}р .\nАдрес: {value['Адрес']}"
                     # Получение дня недели
 
                     options = ["Буду", "+1"]
@@ -116,8 +116,10 @@ class Main:
         if any(user in admins for user in [message.chat.id, username]):
             # Значение, которое мы хотим изменить
             # Ищем ключ по значению и изменяем его
+
             for key, value in data["admins"].items():
-                if value.replace("@", '') in (username, message.chat.id):
+                if value.replace("@", '') in (username, message.chat.id) and len(
+                        str(value.replace("@", '')).split('_')) == 1:
                     new_value = value + str(f"_{message.chat.id}")
                     data["admins"][key] = new_value
                     self.write_data(data)
@@ -129,9 +131,10 @@ class Main:
             # Ищем ключ по значению и изменяем его
             for command in data["commands"].keys():
                 for key, value in data["commands"][command]["users"].items():
-                    if value.replace("@", '') in (username, message.chat.id):
+                    if value.replace("@", '') in (username, message.chat.id) and len(
+                            str(value.replace("@", '')).split('_')) == 1:
                         new_value = value + str(f"_{message.chat.id}")
-                        data["admins"][key] = new_value
+                        data["commands"][command]["users"][key] = new_value
                         self.write_data(data)
                         break  # Выходим из цикла, если нашли и изменили значение
             self.admin = False
@@ -273,7 +276,9 @@ class Main:
                 "priceedit_survey": self.priceedit_survey,
                 "datesend_survey": self.datesend_survey,
                 "timesend_survey": self.timesend_survey,
-                "Результаты опросов": self.result_surveys
+                "Результаты опросов": self.result_surveys,
+                "Напоминание": self.reminder,
+                "Создать напоминание": self.datesend_reminder
 
             }
 
@@ -342,6 +347,7 @@ class Main:
                     _, year, month = call.data.split("_")
                     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
                                                   reply_markup=self.generate_calendar(int(year), int(month)))
+
 
                 elif call.data.startswith("prevsend_") or call.data.startswith("nextsend_"):
                     _, year, month = call.data.split("_")
@@ -454,6 +460,11 @@ class Main:
                     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
                                                   reply_markup=self.generate_edit_survey_calendar(int(year),
                                                                                                   int(month)))
+                elif call.data.startswith("prevreminder_") or call.data.startswith("nextreminder_"):
+                    _, year, month = call.data.split("_")
+                    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
+                                                  reply_markup=self.generate_reminder_calendar(int(year),
+                                                                                               int(month)))
                 elif call.data.startswith("preveditsend_") or call.data.startswith("nexteditsend_"):
                     _, year, month = call.data.split("_")
                     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
@@ -542,7 +553,7 @@ class Main:
 
     def control_buttons(self):
         buttons = [InlineKeyboardButton(key, callback_data=key) for key in
-                   ["Доступ к боту", "Опрос", "Редактирование команд"]]
+                   ["Доступ к боту", "Опрос", "Напоминание", "Редактирование команд"]]
         self.markup = InlineKeyboardMarkup([buttons])
         new_text = """Вы находитесь в разделе: Главное меню - <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
         bot.edit_message_text(
@@ -1136,7 +1147,7 @@ class Main:
         return markup
 
     def new_survey(self):
-        now = datetime.datetime.now()
+        now = datetime.now()
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         self.markup = self.generate_calendar(now.year, now.month)
         new_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
@@ -1270,7 +1281,7 @@ class Main:
         return markup
 
     def select_date_send_survey(self):
-        now = datetime.datetime.now()
+        now = datetime.now()
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         self.markup = self.generate_send_calendar(now.year, now.month)
         new_text = (
@@ -1322,7 +1333,7 @@ class Main:
         self.user_data[self.unique_id]['Количество отметившихся'] = 0
         self.user_data[self.unique_id]['id опроса'] = 0
 
-        # Проверяем, есть ли "surveys" в data, если нет - создаем пустой словарь
+        # Проверяем, есть ли "surveys" в config, если нет - создаем пустой словарь
         if "surveys" not in data:
             data["surveys"] = {}
 
@@ -1478,7 +1489,7 @@ class Main:
         return markup
 
     def dateedit_survey(self):
-        now = datetime.datetime.now()
+        now = datetime.now()
         self.markup = self.generate_edit_survey_calendar(now.year, now.month)
         new_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату тренировки/игры</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
         bot.edit_message_text(
@@ -1614,7 +1625,7 @@ class Main:
         return markup
 
     def datesend_survey(self):
-        now = datetime.datetime.now()
+        now = datetime.now()
         self.markup = self.generate_editsend_survey_calendar(now.year, now.month)
         new_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату отправки опроса</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
         bot.edit_message_text(
@@ -1667,13 +1678,14 @@ class Main:
                                   show_alert=True)
         self.edit_survey()
 
-    def format_dict(self, d, indent=0):
+    def format_dict(self, d, indent=0, base_indent=4):
         result = ""
         for key, value in d.items():
+            current_indent = indent + base_indent  # Смещаем все уровни на base_indent
             if isinstance(value, dict):
-                result += " " * indent + f"{key}:\n" + self.format_dict(value, indent + 4)
+                result += " " * current_indent + f"{key}:\n" + self.format_dict(value, current_indent, base_indent)
             else:
-                result += " " * indent + f"{key}: {value}\n"
+                result += " " * current_indent + f"{key}: {value}\n"
         return result
 
     def result_surveys(self):
@@ -1692,8 +1704,8 @@ class Main:
 
         text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
         text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in ('id опроса', 'Отметились'))
-        text_responce += "\n"
-        text_responce += self.format_dict(survey_data['Отметились'])
+        # Генерация текста
+        text_responce += "\nОтметились:\n" + self.format_dict(survey_data["Отметились"], base_indent=4)
         text_responce += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
                           'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
 
@@ -1712,6 +1724,108 @@ class Main:
             message_id=self.call.message.message_id,
             reply_markup=self.markup,
             parse_mode="HTML"
+        )
+
+    def reminder(self):
+        buttons = [InlineKeyboardButton(key, callback_data=key) for key in
+                   ["Создать напоминание", "Редактировать напоминание", "Результаты напоминаний"]]
+        self.markup = InlineKeyboardMarkup([buttons])
+        self.markup.add(InlineKeyboardButton("Удалить напоминание", callback_data="Удалить напоминание"))
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - <u>Напоминание</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def generate_reminder_calendar(self, year, month):
+
+        markup = InlineKeyboardMarkup()
+        cal = calendar.monthcalendar(year, month)
+
+        markup.row(InlineKeyboardButton(f"{tmonth_names[month]} {year}", callback_data="ignore"))
+
+        week_days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        markup.row(*[InlineKeyboardButton(day, callback_data="ignore") for day in week_days])
+
+        for week in cal:
+            row = []
+            for day in week:
+
+                row.append(InlineKeyboardButton(" " if day == 0 else str(day),
+                                                callback_data=f"reminder_Дата отправки напоминания_{int(day):02d}-{int(month):02d}-{year}" if day != 0 else "ignore"))
+            markup.row(*row)
+        prev_month, prev_year = (month - 1, year) if month > 1 else (12, year - 1)
+        next_month, next_year = (month + 1, year) if month < 12 else (1, year + 1)
+
+        markup.row(
+            InlineKeyboardButton("<", callback_data=f"prevreminder_{prev_year}_{prev_month}"),
+            InlineKeyboardButton(">", callback_data=f"nextreminder_{next_year}_{next_month}")
+        )
+        return markup
+
+    def datesend_reminder(self):
+        now = datetime.now()
+        self.markup = self.generate_reminder_calendar(now.year, now.month)
+
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - <u>Дата</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def timesend_reminder(self):
+        time = [f"{hour:02}:{minute:02}" for hour in range(9, 24) for minute in [0, 30]]
+        buttons = [InlineKeyboardButton(key, callback_data=f"reminder_Время отправки напоминания_{key}") for key in
+                   time]
+        # Разбиваем список кнопок на подсписки по 5 элементов
+        buttons_layout = [buttons[i:i + 5] for i in range(0, len(buttons), 5)]
+        self.markup = InlineKeyboardMarkup(buttons_layout)
+        new_text = (
+            "Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - <u>Время</u>.\n\n"
+            "Используй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\n"
+            "Выберите время:"
+        )
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
+        )
+
+    def description_reminder(self):
+        new_text = (
+            f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - <u>Текст напоминания</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nНапишите текст напоминания:"
+        )
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id
+        )
+        bot.register_next_step_handler(self.call.message, self.get_description_reminder)
+
+    def get_description_reminder(self, message):
+        self.call.data = f"remindersdscr_Описание_{message.text}"
+        try:
+            bot.delete_message(chat_id=message.chat.id,
+                               message_id=message.message_id)
+        except:
+            pass
+
+    def select_user_send_reminder(self):
+        buttons = [InlineKeyboardButton(key, callback_data=key) for key in
+                   ["Отправка командам", "Отправка пользователям"]]
+        self.markup = InlineKeyboardMarkup([buttons])
+        self.markup.add(InlineKeyboardButton("Удалить напоминание", callback_data="Удалить напоминание"))
+        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Выбор получателей</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете раздел:"
+        bot.edit_message_text(
+            new_text,
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            reply_markup=self.markup
         )
 
 
