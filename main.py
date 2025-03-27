@@ -304,7 +304,7 @@ class Main:
                     bot.send_message(self.call.message.chat.id, f"Вы выбрали {date_str}",
                                      reply_markup=types.ReplyKeyboardRemove())
 
-                elif self.call.data in list(self.load_data()["commands"].keys()) + ['admins']:
+                elif self.call.data in list(self.load_data()["commands"].keys()) + ['Админы']:
                     if list(self.state_stack.keys())[-1] == 'Закрыть доступ':
                         self.select_command = self.call.data
                         self.close()
@@ -347,7 +347,6 @@ class Main:
                     _, year, month = call.data.split("_")
                     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
                                                   reply_markup=self.generate_calendar(int(year), int(month)))
-
 
                 elif call.data.startswith("prevsend_") or call.data.startswith("nextsend_"):
                     _, year, month = call.data.split("_")
@@ -484,22 +483,40 @@ class Main:
                     self.selected_edit_users.update(users_list)  # Добавляем в set
                     self.recieptsedit_survey()
 
+    def create_buttons(self, buttons):
+        return [InlineKeyboardButton(key, callback_data=value) for key, value in buttons.items()]
+
+    def edit_message(self, text, buttons=None, add=None):
+        self.markup = InlineKeyboardMarkup()  # Добавляем это
+        if buttons:
+            self.markup = InlineKeyboardMarkup([self.create_buttons(buttons)])
+        if add:
+
+            for key, value in add.items():
+                if 'http' not in value:
+
+                    self.markup.add(InlineKeyboardButton(key, callback_data=value))
+                else:
+                    self.markup.add(InlineKeyboardButton(key, url=value))
+        bot.edit_message_text(
+            chat_id=self.call.message.chat.id,
+            message_id=self.call.message.message_id,
+            text=text,
+            reply_markup=self.markup,
+            parse_mode="HTML"
+        )
+
     def show_start_menu(self, message):
-        self.markup = InlineKeyboardMarkup()
-        self.markup.add(InlineKeyboardButton("Начать", callback_data="Начать"))
+        buttons_name = ["Начать"]
         response_text = f"""Вы находитесь в разделе: <u>Главное меню</u>\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:""",
         if self.admin:
-            self.markup.add(InlineKeyboardButton("Управление", callback_data="Управление"))
+            buttons_name.append('Управление')
         try:
-            bot.edit_message_text(
-                chat_id=self.call.message.chat.id,
-                message_id=self.call.message.message_id,
-                text=response_text,
-                reply_markup=self.markup,
-                parse_mode="HTML"  # Включаем поддержку HTML
-            )
+            buttons = {name: name for name in buttons_name}
+            self.edit_message(response_text, buttons)
         except:
-            users = [name.replace('@', '') for name in self.load_data()["commands"]['RedHeads']["users"].values()]
+            users = [str(name.replace('@', '')).split('_')[0] for name in
+                     self.load_data()["commands"]['RedHeads']["users"].values()]
             if self.load_data()["commands"]['RedHeads']['users']:
                 if any(user in users for user in [message.chat.id, str(message.chat.username).replace('@', '')]):
                     with open(path_to_img_fish, 'rb') as photo:
@@ -515,131 +532,80 @@ class Main:
 
     # Запуск бота
     def navigate(self):
+        self.markup = InlineKeyboardMarkup()
         data = self.load_data()["commands"]
-
         for key in self.keys:
             data = data.get(key, {})
             # убираем список игроков
             data.pop('users', None)
+
         if isinstance(data, dict) and data:
-            self.markup = InlineKeyboardMarkup()
 
-            # Сортируем ключи в алфавитном порядке
-            sorted_keys = sorted(data.keys())
-
-            for k in sorted_keys:  # Используем отсортированные ключи
-                v = data[k]
-                if isinstance(v, str) and v.startswith("http"):
-                    self.markup.add(InlineKeyboardButton(k, url=v))
-                else:
-                    self.markup.add(
-                        InlineKeyboardButton(k, callback_data=f"{k}" if self.call.data else k))
-
-            # Формируем путь с подчёркиванием последнего ключа
             if self.keys:
                 last_key = f"<u>{self.keys[-1]}</u>"
                 section_path = " - ".join(self.keys[:-1] + [last_key])  # Все, кроме последнего, остаются обычными
-                full_path = f"Главное меню - Команды - {section_path}"  # Добавляем "Главное меню" в начало
+                full_path = f"Команды - {section_path}"  # Добавляем "Главное меню" в начало
             else:
-                full_path = "Главное меню - <u>Команды</u>"  # Если ключей нет, просто "Главное меню"
+                full_path = "<u>Команды</u>"  # Если ключей нет, просто "Главное меню"
+            # Сортируем ключи в алфавитном порядке
+            sorted_keys = sorted(data.keys())
 
-            bot.edit_message_text(
-                chat_id=self.call.message.chat.id,
-                message_id=self.call.message.message_id,
-                text=f"""Вы находитесь в разделе: {full_path}\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:""",
-                reply_markup=self.markup,
-                parse_mode="HTML"  # Включаем поддержку HTML
-            )
+            response_text = f"""Вы находитесь в разделе: Главное меню - {full_path}\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+            add = {}
+            for k in sorted_keys:  # Используем отсортированные ключи
+                v = data[k]
+                if isinstance(v, str) and v.startswith("http"):
+                    add[k] = v
+                else:
+                    add[k] = k
+            self.edit_message(response_text, add=add)
+            # Формируем путь с подчёркиванием последнего ключа
 
     def control_buttons(self):
-        buttons = [InlineKeyboardButton(key, callback_data=key) for key in
-                   ["Доступ к боту", "Опрос", "Напоминание", "Редактирование команд"]]
-        self.markup = InlineKeyboardMarkup([buttons])
-        new_text = """Вы находитесь в разделе: Главное меню - <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
-        bot.edit_message_text(
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            text=new_text,
-            reply_markup=self.markup,
-            parse_mode="HTML"  # Включаем поддержку HTML
-        )
+        buttons_name = ["Доступ к боту", "Опрос", "Напоминание", "Редактирование команд"]
+        buttons = {name: name for name in buttons_name}
+        response_text = """Вы находитесь в разделе: Главное меню - <u>Управление</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+        self.edit_message(response_text, buttons)
 
     def main_control(self):
-        self.markup = InlineKeyboardMarkup()
-        self.markup.add(InlineKeyboardButton("Открыть доступ", callback_data="Открыть доступ"))
-        self.markup.add(InlineKeyboardButton("Закрыть доступ", callback_data="Закрыть доступ"))
-        new_text = """Вы находитесь в разделе: Главное меню - Управление -  <u>Доступ к боту</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
-        bot.edit_message_text(
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            text=new_text,
-            reply_markup=self.markup,
-            parse_mode="HTML"  # Включаем поддержку HTML
-        )
+        buttons_name = ["Открыть доступ", "Закрыть доступ"]
+        buttons = {name: name for name in buttons_name}
+        response_text = """Вы находитесь в разделе: Главное меню - Управление -  <u>Доступ к боту</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"""
+        self.edit_message(response_text, buttons)
 
     def open_control(self):
-        buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
-        self.markup = InlineKeyboardMarkup([buttons])
-        self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Открыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-        bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        buttons_name = [key for key in self.load_data()["commands"].keys()] + ['Админы']
+        buttons = {name: name for name in buttons_name}
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Открыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        self.edit_message(response_text, buttons)
 
     def close_control(self):
-        buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
-        self.markup = InlineKeyboardMarkup([buttons])
-        self.markup.add(InlineKeyboardButton("Админы", callback_data="admins"))
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Закрыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-        bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        buttons_name = [key for key in self.load_data()["commands"].keys()] + ['Админы']
+        buttons = {name: name for name in buttons_name}
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Закрыть доступ</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        self.edit_message(response_text, buttons)
 
     def edit_commands(self):
-        buttons = [InlineKeyboardButton(key, callback_data=key) for key in self.load_data()["commands"].keys()]
-        self.markup = InlineKeyboardMarkup([buttons])
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Редактирование команд</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-        bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        buttons_name = [key for key in self.load_data()["commands"].keys()]
+        buttons = {name: name for name in buttons_name}
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Доступ к боту - <u>Редактирование команд</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        self.edit_message(response_text, buttons)
 
     def close(self):
-        self.markup = InlineKeyboardMarkup()
-        buttons = []
         users = (
-            self.load_data()["commands"][self.select_command]["users"].items() if self.select_command != 'admins' else
-            self.load_data()[self.select_command].items())
+            self.load_data()["commands"][self.select_command]["users"].items() if self.select_command != 'Админы' else
+            self.load_data()['admins'].items())
+        add = {}
         for keys, value in users:
             value = str(value).split("_")[0]
             is_selected = f"{keys}_{value}_{self.select_command}" in self.selected_users  # Проверяем, выбран ли пользователь
             icon = "✅" if is_selected else "❌"  # Меняем иконку
             button_text = f"{icon} {keys}({value})"
-            item = types.InlineKeyboardButton(button_text,
-                                              callback_data=f"toggle_{keys}_{value}_{self.select_command}")
-            buttons.append(item)
-
-        self.markup.add(*buttons)
-        select_command = 'Админы' if self.select_command == 'admins' else self.select_command
-        save = InlineKeyboardButton("💾 Закрыть доступ!", callback_data='💾 Закрыть доступ!')
-        cancel = InlineKeyboardButton("Отмена!", callback_data='cancel_dell')
-        self.markup.add(cancel, save)
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление -  Доступ к боту - Закрыть доступ -  <u>{select_command}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-
-        bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+            add[button_text] = f"toggle_{keys}_{value}_{self.select_command}"
+        add['💾 Закрыть доступ!'] = '💾 Закрыть доступ!'
+        add["Отмена!"] = 'cancel_dell'
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Доступ к боту - Закрыть доступ -  <u>{self.select_command}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
+        self.edit_message(response_text, add=add)
 
     def dell_users(self):
         # Загружаем данные из файла
@@ -1752,7 +1718,6 @@ class Main:
         for week in cal:
             row = []
             for day in week:
-
                 row.append(InlineKeyboardButton(" " if day == 0 else str(day),
                                                 callback_data=f"reminder_Дата отправки напоминания_{int(day):02d}-{int(month):02d}-{year}" if day != 0 else "ignore"))
             markup.row(*row)
