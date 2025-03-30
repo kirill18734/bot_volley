@@ -250,9 +250,16 @@ class Main:
                 self.selected_stat.clear()
                 await self.show_start_menu(message)
 
-        @bot.message_handler(func=lambda message: self.user_states.get(message.chat.id) in ("add_survey"))
+        @bot.message_handler(
+            func=lambda message: self.user_states.get(message.chat.id) in ("add_user", "add_video", "add_statistics"))
         async def get_description_reminder(message):
-            await self.process_employee_name(message)
+            if self.user_states.get(message.chat.id) == 'add_user':
+                await self.process_employee_name(message)
+            elif self.user_states.get(message.chat.id) == 'add_video':
+                await self.add_video_list(message)
+            elif self.user_states.get(message.chat.id) == 'add_statistics':
+                await self.add_static_list(message)
+            self.user_states.clear()
 
         @bot.callback_query_handler(func=lambda call: True)
         async def handle_query(call):
@@ -311,8 +318,8 @@ class Main:
                     self.keys.append(self.call.data)
                 await self.navigate()
             else:
-
                 if self.call.data in (actions.keys()):
+
                     self.state_stack[self.call.data] = actions[self.call.data]
                     await actions[self.call.data]()
                 elif self.call.data.startswith("cal_"):
@@ -358,17 +365,15 @@ class Main:
                     self.user_data[self.unique_id]['Тип'] = f"{call.data}"
                     if not self.state_stack:
                         self.state_stack[self.call.data] = self.type_play
-                    self.new_survey()
+                    await self.new_survey()
                 elif call.data.startswith("prev_") or call.data.startswith("next_"):
                     _, year, month = call.data.split("_")
-                    await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
-                                                        reply_markup=self.generate_calendar(int(year), int(month)))
+                    await  self.generate_calendar(int(year), int(month))
 
                 elif call.data.startswith("prevsend_") or call.data.startswith("nextsend_"):
                     _, year, month = call.data.split("_")
-                    await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id,
-                                                        reply_markup=await self.generate_send_calendar(int(year),
-                                                                                                       int(month)))
+                    await self.generate_calendar(int(year), int(month))
+
                 elif call.data.startswith("daysend_"):
 
                     _, year, month, day = call.data.split("_")
@@ -394,7 +399,7 @@ class Main:
                     self.user_data[self.unique_id]['Дата тренировки/игры'] = f"{int(day):02d}-{int(month):02d}-{year}"
 
                     # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
-                    self.generate_time_selection()
+                    await self.generate_time_selection()
                 elif call.data == 'select_send_command':
                     # Теперь можно безопасно записать дату
                     self.user_data[self.unique_id]['Получатели опроса'] = f"{','.join(self.selected_send_users)}"
@@ -408,7 +413,7 @@ class Main:
                         self.hour = 2.5
                     elif self.hour == 2.5:
                         self.hour = 2
-                    self.generate_time_selection()
+                    await self.generate_time_selection()
                 elif call.data == "up_hour":
                     # Переход назад (цикл через 2 -> 2.5 -> 3)
                     if self.hour == 2:
@@ -417,7 +422,7 @@ class Main:
                         self.hour = 3
                     elif self.hour == 3:
                         self.hour = 2
-                    self.generate_time_selection()
+                    await self.generate_time_selection()
                 elif call.data == "back_edit_hours":
                     # Переход назад (цикл через 2 -> 2.5 -> 3)
                     if self.hour == 2:
@@ -504,7 +509,8 @@ class Main:
     async def create_buttons(self, buttons):
         return [InlineKeyboardButton(key, callback_data=value) for key, value in buttons.items()]
 
-    async def edit_message(self, text, buttons=None, add=None, add_row=1, add2=None, add2_row=1, row=None):
+    async def edit_message(self, text, buttons=None, add=None, add_row=1, add2=None, add2_row=1, row_date=None,
+                           row_time=None):
 
         self.markup = InlineKeyboardMarkup()  # Создаем новый объект InlineKeyboardMarkup
         if buttons:
@@ -542,9 +548,36 @@ class Main:
             # Если остались кнопки в последней строке, добавляем их
             if row:
                 self.markup.add(*row)
-        if row:
-            self.markup.row(*[InlineKeyboardButton(month, callback_data="ignore") for month in row[:1]])
-            self.markup.row(*[InlineKeyboardButton(dayweek, callback_data="ignore") for dayweek in row[1:8]])
+        if row_date:
+            self.markup.row(*[InlineKeyboardButton(month, callback_data="ignore") for month in row_date[:1]])
+            self.markup.row(*[InlineKeyboardButton(dayweek, callback_data="ignore") for dayweek in row_date[1:8]])
+
+            for row_ in row_date[8:-2]:
+                row_list = []
+                for row_line in row_:
+                    row_list.append(row_line)
+                    if len(row_list) == 7:
+                        self.markup.row(*row_list)
+
+            row_next = []
+            for row_ in row_date[-2:]:
+                row_next.append(row_)
+                if len(row_next) == 2:
+                    self.markup.row(*row_next)
+
+        if row_time:
+            print(row_time)
+            for row_ in row_time[:-2]:
+                row_list = []
+                for row_line in row_:
+                    row_list.append(row_line)
+                    if len(row_list) == 3:
+                        self.markup.row(*row_list)
+            row_next = []
+            for row_ in row_time[-2:]:
+                row_next.append(row_)
+                if len(row_next) == 2:
+                    self.markup.row(*row_next)
 
         await bot.edit_message_text(
             chat_id=self.call.message.chat.id,
@@ -722,7 +755,7 @@ class Main:
                         f"Петя:@petya (можно без @). \nТакже можно добавлять списком нескольких пользователей через запятую, " \
                         f"пример:\nВася:2938214371, Петя:@petya, Lena:lenusik"
 
-        self.user_states[self.call.message.chat.id] = "add_survey"
+        self.user_states[self.call.message.chat.id] = "add_user"
         await self.edit_message(response_text)
 
     async def process_employee_name(self, message):
@@ -763,7 +796,6 @@ class Main:
                         await bot.answer_callback_query(self.call.id, response_test,
                                                         show_alert=True)
                         self.selected_users = set()
-                        self.selected_video_stat = set()
                         await self.open_control()
                         return
                 await self.write_data(data)
@@ -818,21 +850,15 @@ class Main:
         await self.edit_message(response_text, buttons)
 
     async def add_video(self):
-        response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать видео - <u>Добавить видео</u> .\n\nИспользуй "
-        f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start "
-        f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg"
-        f"\nТакже можно добавлять списком несколько ссылок через запятую, "
-        f"пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg"
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать видео - <u>Добавить видео</u> .\n\nИспользуй " \
+                        f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start " \
+                        f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg" \
+                        f"\nТакже можно добавлять списком несколько ссылок через запятую, " \
+                        f"пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg"
         # Редактируем текущее сообщение, чтобы запросить имя сотрудника
-        await bot.edit_message_text(
-            text=response_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id
-        )
 
-        # Устанавливаем состояние ожидания ответа от пользователя
-        bot.register_next_step_handler(self.call.message,
-                                       self.add_video_list)
+        self.user_states[self.call.message.chat.id] = "add_video"
+        await self.edit_message(response_text)
 
     async def add_video_list(self, message):
         if message.text not in ['/back',
@@ -953,21 +979,15 @@ class Main:
         await self.edit_message(response_text, buttons)
 
     async def add_static(self):
-        response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать статистику - <u>Добавить статистику</u> .\n\nИспользуй "
-        f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start "
-        f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg"
-        f"\nТакже можно добавлять списком несколько ссылок через запятую, "
-        f"пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg"
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать статистику - <u>Добавить статистику</u> .\n\nИспользуй " \
+                        f"кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start " \
+                        f"\n\nНапишите название  и ссылку на видео для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg" \
+                        f"\nТакже можно добавлять списком несколько ссылок через запятую, " \
+                        f"пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg"
         # Редактируем текущее сообщение, чтобы запросить имя сотрудника
-        await bot.edit_message_text(
-            text=response_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id
-        )
+        self.user_states[self.call.message.chat.id] = "add_statistics"
+        await self.edit_message(response_text)
         # Устанавливаем состояние ожидания ответа от пользователя
-
-        bot.register_next_step_handler(self.call.message,
-                                       self.add_static_list)
 
     async def add_static_list(self, message):
         if message.text not in ['/back',
@@ -1095,36 +1115,43 @@ class Main:
         response_text = f"Вы находитесь в разделе: Главное меню - Управление - Опрос - <u>Новый опрос</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         await self.edit_message(response_text, buttons)
 
-    def generate_calendar(self, year, month):
+    async def generate_calendar(self, year, month):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
         cal = calendar.monthcalendar(year, month)
 
         buttons = [f"{tmonth_names[month]} {year}", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
+        # Дни месяца
         for week in cal:
-            row = {}
+            row = []
             for day in week:
-                row[" " if day == 0 else str(day)] = f"day_{year}_{month}_{day}" if day != 0 else "ignore"
-            buttons.append(row)  # Добавляем словарь row в список buttons
+                if day == 0:
+                    row.append(InlineKeyboardButton(" ", callback_data="ignore"))
+                else:
+                    row.append(InlineKeyboardButton(
+                        str(day),
+                        callback_data=f"day_{year}_{month:02d}_{day:02d}"
+                    ))
+            buttons.append(row)
 
-        self.edit_message(response_text, row=buttons)
-        # prev_month, prev_year = (month - 1, year) if month > 1 else (12, year - 1)
-        # next_month, next_year = (month + 1, year) if month < 12 else (1, year + 1)
-        #
-        # markup.row(
-        #     InlineKeyboardButton("<", callback_data=f"prev_{prev_year}_{prev_month}"),
-        #     InlineKeyboardButton(">", callback_data=f"next_{next_year}_{next_month}")
-        # )
+        prev_month, prev_year = (month - 1, year) if month > 1 else (12, year - 1)
+        next_month, next_year = (month + 1, year) if month < 12 else (1, year + 1)
+
+        buttons.append(InlineKeyboardButton("<", callback_data=f"prev_{prev_year}_{prev_month}"))
+        buttons.append(InlineKeyboardButton(">", callback_data=f"next_{next_year}_{next_month}"))
+
+        await self.edit_message(response_text, row_date=buttons)
         # return markup
 
-    def new_survey(self):
+    async def new_survey(self):
         now = datetime.now()
-        self.generate_calendar(now.year, now.month)
+        await self.generate_calendar(now.year, now.month)
 
-    def generate_time_selection(self):
-        self.markup = InlineKeyboardMarkup()
+    async def generate_time_selection(self):
+
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
+
         times = [f"{hour:02d}:{minute:02d} - {hour + 2:02d}:{minute:02d}"
                  for hour in range(9, 21)
                  for minute in [0, 30]]
@@ -1136,35 +1163,29 @@ class Main:
             times = [f"{hour:02d}:{minute:02d} - {hour + 3:02d}:{minute:02d}"
                      for hour in range(9, 21)
                      for minute in [0, 30]]
+
         text = f"{self.hour}ч" if self.hour != 2.5 else '2ч30м'
-        new_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата -  <u>Время</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start \n\nВыберите время (интервал - {text}) игры/тренировки:"
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата -  <u>Время</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start \n\nВыберите время (интервал - {text}) игры/тренировки:"
+
+        buttons = []
         for i in range(0, len(times), 4):
-            self.markup.row(
-                *[InlineKeyboardButton(time,
+            buttons.append(
+                [InlineKeyboardButton(time,
                                        callback_data=f"time_{self.user_data[self.unique_id]['Дата тренировки/игры']}_{time}")
                   for
                   time in
                   times[i:i + 4]])
-        self.markup.row(
-            InlineKeyboardButton("<", callback_data=f"back_hours"),
-            InlineKeyboardButton(">", callback_data=f"up_hour")
-        )
-        bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+
+        buttons.append(InlineKeyboardButton("<", callback_data=f"back_hours"))
+        buttons.append(InlineKeyboardButton(">", callback_data=f"up_hour"))
+
+        await self.edit_message(response_text, row_time=buttons)
 
     async def get_address(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         new_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - <u>Адрес</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start \n\nНапишите адрес:"
-        await bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id
-        )
-        bot.register_next_step_handler(self.call.message, self.get_adress_text)
+
+        await bot.register_next_step_handler(self.call.message, self.get_adress_text)
 
     async def get_adress_text(self, message):
         self.user_data[self.unique_id]['Адрес'] = message.text
