@@ -1234,32 +1234,9 @@ class Main:
             reply_markup=self.markup
         )
 
-    async def generate_edit_survey_calendar(self, year, month):
-        markup = InlineKeyboardMarkup()
-        cal = calendar.monthcalendar(year, month)
-        markup.row(InlineKeyboardButton(f"{tmonth_names[month]} {year}", callback_data="ignore"))
-
-        week_days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-        markup.row(*[InlineKeyboardButton(day, callback_data="ignore") for day in week_days])
-
-        for week in cal:
-            row = []
-            for day in week:
-                row.append(InlineKeyboardButton(" " if day == 0 else str(day),
-                                                callback_data=f"editsurvey_Дата тренировки/игры_{int(day):02d}-{int(month):02d}-{year}" if day != 0 else "ignore"))
-            markup.row(*row)
-        prev_month, prev_year = (month - 1, year) if month > 1 else (12, year - 1)
-        next_month, next_year = (month + 1, year) if month < 12 else (1, year + 1)
-
-        markup.row(
-            InlineKeyboardButton("<", callback_data=f"prevedit_{prev_year}_{prev_month}"),
-            InlineKeyboardButton(">", callback_data=f"nextedit_{next_year}_{next_month}")
-        )
-        return markup
 
     async def dateedit_survey(self):
         now = datetime.now()
-        self.markup = self.generate_edit_survey_calendar(now.year, now.month)
         new_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату тренировки/игры</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
         await bot.edit_message_text(
             new_text,
