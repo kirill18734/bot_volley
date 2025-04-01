@@ -31,7 +31,6 @@ class Main:
     def __init__(self):
         self.state_stack = {}  # Стек для хранения состояний
         self.selected_list = set()
-        self.selected_send_users = set()
         self.selected_edit_users = set()
         self.user_states = {}
         self.current_index = 0
@@ -209,7 +208,6 @@ class Main:
                 self.state_stack.clear()
                 self.selected_list.clear()
                 self.user_data.clear()
-                self.selected_send_users.clear()
 
                 await self.show_start_menu(message)
 
@@ -299,7 +297,6 @@ class Main:
                 "Результаты опросов": self.result_surveys,
                 "Напоминание": self.reminder,
                 "Создать напоминание": self.datesend_reminder
-
             }
 
             if self.admin is None:
@@ -355,6 +352,12 @@ class Main:
                         else:
                             self.selected_list.add(user_key)  # Добавляем в список
                         await self.dell_stitistic()
+                    elif list(self.state_stack.keys())[-1] == 'Новый опрос':
+                        if user_key in self.selected_list:
+                            self.selected_list.remove(user_key)  # Убираем из списка
+                        else:
+                            self.selected_list.add(user_key)  # Добавляем в список
+                        await self.select_send_survey()
                 elif call.data in ("Товарищеская игра", "Тренировка", "Игра"):
                     self.unique_id = str(uuid.uuid4())  # Генерирует случайный UUID версии 4
                     if self.unique_id not in self.user_data:
@@ -371,35 +374,39 @@ class Main:
                     _, year, month = call.data.split("_")
                     await self.generate_calendar(int(year), int(month))
 
-                elif call.data.startswith("daysend_"):
-
-                    _, year, month, day = call.data.split("_")
-                    # Теперь можно безопасно записать дату
-                    self.user_data[self.unique_id]['Дата отправки опроса'] = f"{int(day):02d}-{int(month):02d}-{year}"
-
-                    # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
-                    await self.select_time_send_survey()
-                elif call.data.startswith("timesend_"):
+                elif call.data.startswith("time_"):
 
                     _, time = call.data.split("_")
 
-                    # Теперь можно безопасно записать дату
-                    self.user_data[self.unique_id]['Время отправки опроса'] = f"{time}"
-
+                    if 'Время тренировки/игры' not in (self.user_data[self.unique_id].keys()):
+                        # Теперь можно безопасно записать дату
+                        self.user_data[self.unique_id]['Время тренировки/игры'] = f"{time}"
+                        await self.get_address()
                     # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
-                    await self.save_survey()
+
+                    elif 'Время отправки опроса' not in (self.user_data[self.unique_id].keys()):
+                        # Теперь можно безопасно записать дату
+                        self.user_data[self.unique_id]['Время отправки опроса'] = f"{time}"
+                        await self.save_survey()
+
                 elif call.data.startswith("day_"):
 
                     _, year, month, day = call.data.split("_")
-
-                    # Теперь можно безопасно записать дату
-                    self.user_data[self.unique_id]['Дата тренировки/игры'] = f"{int(day):02d}-{int(month):02d}-{year}"
-
+                    if 'Дата тренировки/игры' not in (self.user_data[self.unique_id].keys()):
+                        # Теперь можно безопасно записать дату
+                        self.user_data[self.unique_id][
+                            'Дата тренировки/игры'] = f"{int(day):02d}-{int(month):02d}-{year}"
+                        await self.generate_time_selection()
+                    elif 'Дата отправки опроса' not in (self.user_data[self.unique_id].keys()):
+                        self.user_data[self.unique_id][
+                            'Дата отправки опроса'] = f"{int(day):02d}-{int(month):02d}-{year}"
+                        await self.select_time_send_survey()
                     # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
-                    await self.generate_time_selection()
+
+
                 elif call.data == 'select_send_command':
                     # Теперь можно безопасно записать дату
-                    self.user_data[self.unique_id]['Получатели опроса'] = f"{','.join(self.selected_send_users)}"
+                    self.user_data[self.unique_id]['Получатели опроса'] = f"{','.join(self.selected_list)}"
                     # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
                     await self.select_date_send_survey()
                 elif call.data == "back_hours":
@@ -438,20 +445,10 @@ class Main:
                     elif self.hour == 3:
                         self.hour = 2
                     await self.timeedit_survey()
-                elif call.data.startswith("time_"):
-                    _, data, time = call.data.split("_")
-                    self.user_data[self.unique_id]['Время тренировки/игры'] = f"{time}"
-                    await self.get_address()
+
                 elif call.data.startswith("price_"):
                     _, price = call.data.split("_")
                     self.user_data[self.unique_id]['Цена'] = f"{price}"
-                    await self.select_send_survey()
-                elif self.call.data.startswith("send_"):
-                    user_key = '_'.join(self.call.data.split("_")[1:])  # Извлекаем имя пользователя
-                    if user_key in self.selected_send_users:
-                        self.selected_send_users.remove(user_key)  # Убираем из списка
-                    else:
-                        self.selected_send_users.add(user_key)  # Добавляем в список
                     await self.select_send_survey()
                 elif self.call.data == "nextdell" and self.current_index < len(self.surveys) - 1:
                     self.current_index += 1
@@ -507,7 +504,7 @@ class Main:
         return [InlineKeyboardButton(key, callback_data=value) for key, value in buttons.items()]
 
     async def edit_message(self, text, buttons=None, add=None, add_row=1, add2=None, add2_row=1, row_date=None,
-                           row_time=None, row_price=None):
+                           row_time=None, row_price=None, add_end=None):
 
         self.markup = InlineKeyboardMarkup()  # Создаем новый объект InlineKeyboardMarkup
         if buttons:
@@ -586,7 +583,22 @@ class Main:
                 # Добавляем оставшиеся элементы, если они есть
                 if row_list:
                     self.markup.row(*row_list)
+        if add_end:
+            row = []  # Список для хранения кнопок в текущей строке
+            for key, value in add_end.items():
+                if 'http' not in value:
+                    row.append(InlineKeyboardButton(key, callback_data=value))
+                else:
+                    row.append(InlineKeyboardButton(key, url=value))
 
+                # Если достигли максимального количества кнопок в строке, добавляем строку в разметку
+                if len(row) == add_end:
+                    self.markup.add(*row)  # Добавляем текущую строку в разметку
+                    row = []  # Очищаем список для следующей строки
+
+            # Если остались кнопки в последней строке, добавляем их
+            if row:
+                self.markup.add(*row)
         await bot.edit_message_text(
             chat_id=self.call.message.chat.id,
             message_id=self.call.message.message_id,
@@ -623,7 +635,6 @@ class Main:
 
     # Запуск бота
     async def navigate(self):
-        self.markup = InlineKeyboardMarkup()
         get_data = await self.load_data()
         data = get_data["commands"]
         for key in self.keys:
@@ -959,11 +970,12 @@ class Main:
         response_text = f"Вы находитесь в разделе: Главное меню - Управление - Опрос - <u>Новый опрос</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         await self.edit_message(response_text, buttons)
 
-    async def generate_calendar(self, year, month):
-        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
+    async def generate_calendar(self, year, month, response_text=None):
+        if not response_text:
+            text_responce = "\n".join(
+                f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
+            response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
         cal = calendar.monthcalendar(year, month)
-
         buttons = [f"{tmonth_names[month]} {year}", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
         # Дни месяца
@@ -989,8 +1001,10 @@ class Main:
         # return markup
 
     async def new_survey(self):
+        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
         now = datetime.now()
-        await self.generate_calendar(now.year, now.month)
+        await self.generate_calendar(now.year, now.month, response_text)
 
     async def generate_time_selection(self):
 
@@ -1015,7 +1029,7 @@ class Main:
         for i in range(0, len(times), 4):
             buttons.append(
                 [InlineKeyboardButton(time,
-                                      callback_data=f"time_{self.user_data[self.unique_id]['Дата тренировки/игры']}_{time}")
+                                      callback_data=f"time_{time}")
                  for
                  time in
                  times[i:i + 4]])
@@ -1047,76 +1061,58 @@ class Main:
         response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - <u>Цена</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите цену игры/тренировки:")
 
-        buttons = []
-        for i in range(0, len(prices), 4):
-            buttons.append([
-                InlineKeyboardButton(str(price), callback_data=f"price_{price}") for price in prices[i:i + 4]
-            ])
+        buttons = [
+            [InlineKeyboardButton(str(price), callback_data=f"price_{price}") for price in prices]
+        ]
 
         await self.edit_message(response_text, row_price=buttons)
 
     async def select_send_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         data = await self.load_data()
-        buttons = {}
-        users = list(data["commands"].keys()) + ['Админы']
-        for value in users:
-            is_selected = f"{value}" in self.selected_send_users  # Проверяем, выбран ли пользователь
-            icon = "✅" if is_selected else "❌"  # Меняем иконку
+        users = {name: name for name in data["commands"].keys()}
+        users['Админы'] = 'admins'
 
-            button_text = f"{icon} {value}"
-            buttons[button_text] = f"send_{value}"
+        # Создание кнопок
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    f"{'✅' if value in self.selected_list else '❌'} {key}",
+                    callback_data=f"toggle_{value}"
+                )
+                for key, value in users.items()
+            ]
+        ]
 
         response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - <u>Выбор команды для опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите команду для опроса:")
 
         add = {"Дальше": "select_send_command"}
-        await self.edit_message(response_text, buttons=buttons, add=add)
+        await self.edit_message(response_text, row_price=buttons, add_end=add)
 
     async def select_date_send_survey(self):
-        now = datetime.now()
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        self.markup = self.generate_send_calendar(now.year, now.month)
-        new_text = (
+        response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - <u>Дата отправки опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите дату отправки опроса:")
-
-        await bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        now = datetime.now()
+        await self.generate_calendar(now.year, now.month, response_text)
 
     async def select_time_send_survey(self):
-        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         time = [f"{hour:02}:{minute:02}" for hour in range(9, 24) for minute in [0, 30]]
-        buttons = [InlineKeyboardButton(key, callback_data=f"timesend_{key}") for key in time]
+        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
+        buttons = [[InlineKeyboardButton(key, callback_data=f"time_{key}") for key in time]]
         # Разбиваем список кнопок на подсписки по 5 элементов
-        buttons_layout = [buttons[i:i + 5] for i in range(0, len(buttons), 5)]
-        self.markup = InlineKeyboardMarkup(buttons_layout)
-        new_text = (
+        response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - <u>Время отправки опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите время отправки опроса:")
-        await bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        await self.edit_message(response_text, row_price=buttons)
 
     async def save_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        self.markup = InlineKeyboardMarkup()
-        self.markup.add(InlineKeyboardButton("Отмена", callback_data="cancel_send_survey"))
-        self.markup.add(InlineKeyboardButton("Запланировать опрос", callback_data="save_send_survey"))
-        new_text = (
-            f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - Время отправки опроса - <u>Сохранение опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nПроверьте подготовленный опрос и выберете раздел")
+        buttons = {"Отмена": "cancel_send_survey", "Запланировать опрос": "save_send_survey"}
 
-        await bot.edit_message_text(
-            new_text,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup
-        )
+        response_text = (
+            f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - Время отправки опроса - <u>Сохранение опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nПроверьте подготовленный опрос и выберете раздел")
+        await self.edit_message(response_text, buttons=buttons)
 
     async def save(self):
         data = await self.load_data()
@@ -1141,7 +1137,7 @@ class Main:
 
         # Очищаем временные данные
         self.user_data.clear()
-        self.selected_send_users.clear()
+        self.selected_list.clear()
         await self.the_survey()
 
     async def del_survey(self):
@@ -1155,29 +1151,23 @@ class Main:
             return
 
         survey_id, survey_data = self.surveys[self.current_index]
-        text_responce = (
+        response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - <u>Удалить опрос</u>.\n\n")
 
-        text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items())
-        text_responce += '\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыбирете опрос для удаления:'
-        buttons = [
-            InlineKeyboardButton("<", callback_data="prevdell") if self.current_index > 0 else None,
-            InlineKeyboardButton(">", callback_data="nextdell") if self.current_index < len(self.surveys) - 1 else None
-        ]
+        response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+        response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items())
+        response_text += '\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыбирете опрос для удаления:'
+        add = {
+            "<": "prevdell" if self.current_index > 0 else None,
+            ">": "nextdell" if self.current_index < len(self.surveys) - 1 else None
+        }
 
-        buttons = [btn for btn in buttons if btn]  # Убираем None
+        # Убираем ключи с значением None
+        add = {key: value for key, value in add.items() if value is not None}
 
-        markup = InlineKeyboardMarkup([buttons, [InlineKeyboardButton("Отмена", callback_data="cansel_survey"),
-                                                 InlineKeyboardButton("Удалить опрос", callback_data="dell_survey")]])
+        add2 = {"Отмена": "cansel_survey", "Удалить опрос": "dell_survey"}
 
-        await bot.edit_message_text(
-            text_responce,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=markup,
-            parse_mode="HTML"
-        )
+        await self.edit_message(response_text, add=add, add_row=2, add2=add2, add2_row=2)
 
     async def save_dell_survey(self):
         data = await self.load_data()
@@ -1201,24 +1191,24 @@ class Main:
             return
 
         survey_id, survey_data = self.surveys[self.current_index]
-        text_responce = (
+        response_text = (
             f"Вы находитесь в разделе: Главное меню - Управление - <u>Редактировать опрос</u>.\n\n"
         )
 
-        text_responce += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-        text_responce += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
+        response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+        response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
             'Отметились', 'Количество отметившихся', 'id опроса', 'Опрос отправлен', 'Опрос открыт'))
-        text_responce += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
+        response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
                           'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
+        add = {
+            "<": "mainprevedit" if self.current_index > 0 else None,
+            ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
+        }
 
-        navigation_buttons = [
-            InlineKeyboardButton("<", callback_data="mainprevedit") if self.current_index > 0 else None,
-            InlineKeyboardButton(">", callback_data="mainnextedit") if self.current_index < len(
-                self.surveys) - 1 else None
-        ]
-        navigation_buttons = [btn for btn in navigation_buttons if btn]  # Убираем None
+        # Убираем ключи с значением None
+        add = {key: value for key, value in add.items() if value is not None}
 
-        edit_buttons = [
+        edit_buttons = [[
             InlineKeyboardButton("Изменить тип", callback_data="typeedit_survey"),
             InlineKeyboardButton("Изменить дату тренировки/игры", callback_data="dateedit_survey"),
             InlineKeyboardButton("Изменить время тренировки/игры", callback_data="timeedit_survey"),
@@ -1227,20 +1217,9 @@ class Main:
             InlineKeyboardButton("Изменить получателей", callback_data="recieptsedit_survey"),
             InlineKeyboardButton("Изменить дату отправки опроса", callback_data="datesend_survey"),
             InlineKeyboardButton("Изменить время отправки опроса", callback_data="timesend_survey")
-        ]
 
-        # Разбиваем edit_buttons на строки по 3 кнопки
-        edit_buttons_layout = [edit_buttons[i:i + 3] for i in range(0, len(edit_buttons), 3)]
-
-        self.markup = InlineKeyboardMarkup([navigation_buttons] + edit_buttons_layout)
-
-        await bot.edit_message_text(
-            text_responce,
-            chat_id=self.call.message.chat.id,
-            message_id=self.call.message.message_id,
-            reply_markup=self.markup,
-            parse_mode="HTML"
-        )
+        ]]
+        await self.edit_message(response_text, add=add, add_row=2, row_price=edit_buttons)
 
     async def typeedit_survey(self):
 
