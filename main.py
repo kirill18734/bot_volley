@@ -286,6 +286,7 @@ class Main:
                 "Удалить опрос": self.del_survey,
                 "cansel_survey": self.the_survey,
                 "dell_survey": self.save_dell_survey,
+                "Результаты опросов": self.result_surveys,
                 "Редактировать опрос": self.edit_survey
             }
 
@@ -376,6 +377,7 @@ class Main:
                             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату тренировки/игры</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
                         else:
                             self.send_serveys = None
+                            self.state_stack = dict(list(self.state_stack.items())[:3])
                             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату отправки опроса</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
                         await self.generate_calendar(int(year), int(month), response_text=response_text)
 
@@ -425,7 +427,7 @@ class Main:
                 elif call.data == 'select_send_command':
                     if list(self.state_stack.keys())[-1] == 'Новый опрос':
                         # Теперь можно безопасно записать дату
-                        self.user_data[self.unique_id]['Получатели опроса'] = f"{','.join(self.selected_list)}"
+                        self.user_data[self.unique_id]['Получатели опроса'] = ','.join(self.selected_list)
                         # Передаем дату в функцию (убрал .value(), так как строка не имеет такого метода)
                         await self.select_date_send_survey()
                     else:
@@ -466,12 +468,16 @@ class Main:
                     await self.del_survey()
                 elif self.call.data == "mainnextedit" and self.current_index < len(self.surveys) - 1:
                     self.current_index += 1
-                    await self.edit_survey()
+                    if list(self.state_stack.keys())[-1] != 'Результаты опросов':
+                        await self.edit_survey()
+                    else:
+                        await self.result_surveys()
                 elif self.call.data == "mainprevedit" and self.current_index > 0:
                     self.current_index -= 1
-                    await self.edit_survey()
-                elif self.call.data.startswith("editsurvey_"):
-                    await self.save_edit()
+                    if list(self.state_stack.keys())[-1] != 'Результаты опросов':
+                        await self.edit_survey()
+                    else:
+                        await self.result_surveys()
 
     async def create_buttons(self, buttons):
         return [InlineKeyboardButton(key, callback_data=value) for key, value in buttons.items()]
@@ -955,6 +961,7 @@ class Main:
         if list(self.state_stack.keys())[-1] == 'Новый опрос':
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Опрос - <u>Новый опрос</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить тип</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
         await self.edit_message(response_text, buttons)
 
@@ -993,8 +1000,10 @@ class Main:
                 f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
         elif self.call.data != 'edit_newsurveysend':
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату тренировки/игры</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить дату отправки опроса</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
 
         now = datetime.now()
@@ -1020,6 +1029,7 @@ class Main:
                 f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата -  <u>Время</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start \n\nВыберите время (интервал - {text}) игры/тренировки:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить время тренировки/игры</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите время (интервал - {text}) игры/тренировки:"
 
         buttons = []
@@ -1042,6 +1052,7 @@ class Main:
                 f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - <u>Адрес</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start \n\nНапишите адрес:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить адрес</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nНапишите адрес:"
         self.user_states[self.call.message.chat.id] = "add_address"
         await self.edit_message(response_text)
@@ -1066,6 +1077,7 @@ class Main:
                 f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - <u>Цена</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите цену игры/тренировки:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить цену</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете цену тренировки/игры:"
 
         buttons = [
@@ -1091,17 +1103,19 @@ class Main:
             ]
         ]
         if list(self.state_stack.keys())[-1] == 'Новый опрос':
-            response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - <u>Выбор команды для опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите команду для опроса:"
+
+            response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - <u>Получатели опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите команду для опроса:"
+
             add = {"Дальше": "select_send_command"}
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить получателей</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете команды:"
             add = {"Сохранить": "select_send_command"}
         await self.edit_message(response_text, row_price=buttons, add_end=add)
 
     async def select_date_send_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        response_text = (
-            f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - <u>Дата отправки опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите дату отправки опроса:")
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - <u>Дата отправки опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите дату отправки опроса:"
         now = datetime.now()
         await self.generate_calendar(now.year, now.month, response_text)
 
@@ -1114,6 +1128,7 @@ class Main:
         if list(self.state_stack.keys())[-1] == 'Новый опрос':
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - <u>Время отправки опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите время отправки опроса:"
         else:
+            self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = "Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить время отправки опроса</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите время:"
         await self.edit_message(response_text, row_price=buttons)
 
@@ -1210,7 +1225,7 @@ class Main:
         response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
             'Отметились', 'Количество отметившихся', 'id опроса', 'Опрос отправлен', 'Опрос открыт'))
         response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
-                          'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
+                          'используйте команду /back. В начало /start\n\nВыберите раздел:')
         add = {
             "<": "mainprevedit" if self.current_index > 0 else None,
             ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
@@ -1253,6 +1268,48 @@ class Main:
         await bot.answer_callback_query(self.call.id, response_text,
                                         show_alert=True)
         await self.edit_survey()
+
+    async def format_dict(self, d, indent=0, base_indent=4):
+        result = ""
+        for key, value in d.items():
+            current_indent = indent + base_indent  # Смещаем все уровни на base_indent
+            if isinstance(value, dict):
+                result += " " * current_indent + f"{key}:\n" + await self.format_dict(value, current_indent,
+                                                                                      base_indent)
+            else:
+                result += " " * current_indent + f"{key}: {value}\n"
+        return result
+
+    async def result_surveys(self):
+        self.data = await self.load_data()
+        """Отображает текущий опрос с кнопками навигации"""
+        self.surveys = list(self.data["surveys"].items())
+        if not self.surveys:
+            response_text = 'Нет доступных опросов.'
+            await bot.answer_callback_query(self.call.id, response_text, show_alert=True)
+            return
+
+        survey_id, survey_data = self.surveys[self.current_index]
+        response_text = (
+            f"Вы находитесь в разделе: Главное меню - Управление - <u>Результаты опросов</u>.\n\n"
+        )
+
+        response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+        response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in ('id опроса', 'Отметились'))
+        # Генерация текста
+        response_text += "\nОтметились:\n" + await self.format_dict(survey_data["Отметились"], base_indent=4)
+        response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
+                          'используйте команду /back. В начало /start\n\nВыберите опрос для удаления:')
+
+        add = {
+            "<": "mainprevedit" if self.current_index > 0 else None,
+            ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
+        }
+
+        # Убираем ключи с значением None
+        add = {key: value for key, value in add.items() if value is not None}
+
+        await self.edit_message(response_text, add=add, add_row=2)
 
 
 async def main():
