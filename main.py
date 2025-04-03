@@ -1333,9 +1333,7 @@ class Main:
             return
 
         survey_id, survey_data = self.surveys[self.current_index]
-        response_text = (
-            f"Вы находитесь в разделе: Главное меню - Управление - <u>Редактировать опрос</u>.\n\n"
-        )
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - <u>Редактировать опрос</u>.\n\n"
 
         response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
         response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
@@ -1437,6 +1435,11 @@ class Main:
         buttons = {name: name for name in buttons_name}
         response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Получатели</u>\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете получателей:"
         await self.edit_message(response_text, buttons)
+
+    async def user_receipts_reminder(self):
+        self.data = await self.load_data()
+        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Получатели</u>\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете получателей:"
 
 
 async def main():
