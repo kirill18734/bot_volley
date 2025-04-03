@@ -1269,7 +1269,12 @@ class Main:
         # Очищаем временные данные
         self.user_data.clear()
         self.selected_list.clear()
-        await self.the_survey()
+        if 'Новый опрос' in list(self.state_stack.keys()):
+            self.state_stack = dict(list(self.state_stack.items())[:-2])
+            await self.state_stack[list(self.state_stack.keys())[-1]]()
+        else:
+            self.state_stack = dict(list(self.state_stack.items())[:-1])
+            await self.state_stack[list(self.state_stack.keys())[-1]]()
 
     async def del_survey(self):
         self.data = await self.load_data()
