@@ -351,6 +351,12 @@ class Main:
                             self.select_command = self.call.data
                             self.state_stack["command"] = self.edit_command
                             await self.edit_command()
+                    elif self.call.data == 'cancel_send_survey':
+                        if 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
+                                self.state_stack.keys()):
+                            await self.reminder()
+                        else:
+                            await self.the_survey()
                     elif self.call.data.startswith("edit_"):
                         _, function = str(self.call.data).split('_')
                         self.send_serveys = None
@@ -1227,21 +1233,21 @@ class Main:
 
     async def save_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        if 'Новый опрос'  in list(self.state_stack.keys()):
+        if 'Новый опрос' in list(self.state_stack.keys()):
             buttons = {"Отмена": "cancel_send_survey", "Запланировать опрос": "save_send_survey"}
 
             response_text = (
-            f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - Время отправки опроса - <u>Сохранение опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nПроверьте подготовленный опрос и выберете раздел")
+                f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - Выбор команды для опроса - Дата отправки опроса - Время отправки опроса - <u>Сохранение опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nПроверьте подготовленный опрос и выберете раздел")
         else:
             response_text = (
                 f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - Получатели - <u>Сохранение напоминания</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nПроверьте подготовленное напоминание и выберете раздел")
 
-            buttons = {"Отмена": "cancel_send_survey", "Запланировать опрос": "save_send_survey"}
+            buttons = {"Отмена": "cancel_send_survey", "Запланировать напоминание": "save_send_survey"}
         await self.edit_message(response_text, buttons=buttons)
 
     async def save(self):
         data = await self.load_data()
-        if 'Новый опрос'  in list(self.state_stack.keys()):
+        if 'Новый опрос' in list(self.state_stack.keys()):
             self.user_data[self.unique_id]['Опрос открыт'] = "Нет"
             self.user_data[self.unique_id]['Опрос отправлен'] = "Нет"
             self.user_data[self.unique_id]['Отметились'] = {}
