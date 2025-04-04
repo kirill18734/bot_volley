@@ -305,7 +305,6 @@ class Main:
                 "cancel_dell_stat": self.dell_list,
                 "Опрос": self.the_survey,
                 "Новый опрос": self.typeplay,
-                "cancel_send_survey": self.the_survey,
                 "save_send_survey": self.save,
                 "Удалить опрос": self.del_survey,
                 "cansel_survey": self.the_survey,
@@ -351,6 +350,8 @@ class Main:
                             self.select_command = self.call.data
                             self.state_stack["command"] = self.edit_command
                             await self.edit_command()
+                    elif self.call.data == 'Пользователи':
+                        await self.user_receipts_reminder()
                     elif self.call.data == 'cancel_send_survey':
                         if 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
                                 self.state_stack.keys()):
@@ -391,12 +392,19 @@ class Main:
                                 self.selected_list.add(user_key)  # Добавляем в список
                             await self.selectsendsurvey()
                         elif 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
-                                self.state_stack.keys()):
+                                self.state_stack.keys()) and 'Напоминание' not in list(
+                                self.state_stack.keys()) :
                             if user_key in self.selected_list:
                                 self.selected_list.remove(user_key)  # Убираем из списка
                             else:
                                 self.selected_list.add(user_key)  # Добавляем в список
                             await self.selectsendsurvey()
+                        elif list(self.state_stack.keys())[-1] == 'Напоминание':
+                            if user_key in self.selected_list:
+                                self.selected_list.remove(user_key)  # Убираем из списка
+                            else:
+                                self.selected_list.add(user_key)  # Добавляем в список
+                            await self.user_receipts_reminder()
                     elif call.data in ("Товарищеская игра", "Тренировка", "Игра"):
                         if list(self.state_stack.keys())[-1] == 'Новый опрос':
                             self.unique_id = str(uuid.uuid4())  # Генерирует случайный UUID версии 4
@@ -420,7 +428,7 @@ class Main:
                         _, year, month = call.data.split("_")
                         if list(self.state_stack.keys())[-1] == 'Новый опрос':
                             await self.generate_calendar(int(year), int(month))
-                        if 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
+                        elif 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
                                 self.state_stack.keys()):
                             await self.generate_calendar(int(year), int(month))
                         else:
@@ -533,125 +541,76 @@ class Main:
                         await self.del_survey()
                     elif self.call.data == "mainnextedit" and self.current_index < len(self.surveys) - 1:
                         self.current_index += 1
-                        if list(self.state_stack.keys())[-1] != 'Результаты опросов':
+
+                        if list(self.state_stack.keys())[-1] not in ('Результаты опросов', 'Напоминание'):
                             await self.edit_survey()
+                        elif list(self.state_stack.keys())[-1] == 'Напоминание':
+                            await self.user_receipts_reminder()
                         else:
                             await self.result_surveys()
                     elif self.call.data == "mainprevedit" and self.current_index > 0:
                         self.current_index -= 1
-                        if list(self.state_stack.keys())[-1] != 'Результаты опросов':
+
+                        if list(self.state_stack.keys())[-1] not in ('Результаты опросов', 'Напоминание'):
                             await self.edit_survey()
+                        elif list(self.state_stack.keys())[-1] == 'Напоминание':
+                            await self.user_receipts_reminder()
                         else:
                             await self.result_surveys()
                 else:
                     await self.show_start_menu(call.message)
 
-    async def create_buttons(self, buttons):
-        return [InlineKeyboardButton(key, callback_data=value) for key, value in buttons.items()]
+    async def edit_message(self, response_text, buttons=None, buttons_row=4):
+        self.markup = InlineKeyboardMarkup()
 
-    async def edit_message(self, text, buttons=None, add=None, add_row=1, add2=None, add2_row=1, row_date=None,
-                           row_time=None, row_price=None, add_end=None):
-
-        self.markup = InlineKeyboardMarkup()  # Создаем новый объект InlineKeyboardMarkup
+        if not response_text:
+            print('Неверно указан текст')
+            return
         if buttons:
-            self.markup = InlineKeyboardMarkup([await self.create_buttons(buttons)])
+            await self.process_buttons(buttons, buttons_row)
 
-        if add:
-            row = []  # Список для хранения кнопок в текущей строке
-            for key, value in add.items():
-                if 'http' not in value:
-                    row.append(InlineKeyboardButton(key, callback_data=value))
-                else:
-                    row.append(InlineKeyboardButton(key, url=value))
-
-                # Если достигли максимального количества кнопок в строке, добавляем строку в разметку
-                if len(row) == add_row:
-                    self.markup.add(*row)  # Добавляем текущую строку в разметку
-                    row = []  # Очищаем список для следующей строки
-
-            # Если остались кнопки в последней строке, добавляем их
-            if row:
-                self.markup.add(*row)
-        if add2:
-            row = []  # Список для хранения кнопок в текущей строке
-            for key, value in add2.items():
-                if 'http' not in value:
-                    row.append(InlineKeyboardButton(key, callback_data=value))
-                else:
-                    row.append(InlineKeyboardButton(key, url=value))
-
-                # Если достигли максимального количества кнопок в строке, добавляем строку в разметку
-                if len(row) == add2_row:
-                    self.markup.add(*row)  # Добавляем текущую строку в разметку
-                    row = []  # Очищаем список для следующей строки
-
-            # Если остались кнопки в последней строке, добавляем их
-            if row:
-                self.markup.add(*row)
-        if row_date:
-            self.markup.row(*[InlineKeyboardButton(month, callback_data="ignore") for month in row_date[:1]])
-            self.markup.row(*[InlineKeyboardButton(dayweek, callback_data="ignore") for dayweek in row_date[1:8]])
-
-            for row_ in row_date[8:-2]:
-                row_list = []
-                for row_line in row_:
-                    row_list.append(row_line)
-                    if len(row_list) == 7:
-                        self.markup.row(*row_list)
-
-            row_next = []
-            for row_ in row_date[-2:]:
-                row_next.append(row_)
-                if len(row_next) == 2:
-                    self.markup.row(*row_next)
-
-        if row_time:
-
-            for row_ in row_time[:-2]:
-                row_list = []
-                for row_line in row_:
-                    row_list.append(row_line)
-                    if len(row_list) == 3:
-                        self.markup.row(*row_list)
-            row_next = []
-            for row_ in row_time[-2:]:
-                row_next.append(row_)
-                if len(row_next) == 2:
-                    self.markup.row(*row_next)
-        if row_price:
-            for row_ in row_price:
-                row_list = []
-                for row_line in row_:
-                    row_list.append(row_line)
-                    if len(row_list) == 4:
-                        self.markup.row(*row_list)
-                        row_list = []  # Сбрасываем row_list после добавления в row
-                # Добавляем оставшиеся элементы, если они есть
-                if row_list:
-                    self.markup.row(*row_list)
-        if add_end:
-            row = []  # Список для хранения кнопок в текущей строке
-            for key, value in add_end.items():
-                if 'http' not in value:
-                    row.append(InlineKeyboardButton(key, callback_data=value))
-                else:
-                    row.append(InlineKeyboardButton(key, url=value))
-
-                # Если достигли максимального количества кнопок в строке, добавляем строку в разметку
-                if len(row) == add_end:
-                    self.markup.add(*row)  # Добавляем текущую строку в разметку
-                    row = []  # Очищаем список для следующей строки
-
-            # Если остались кнопки в последней строке, добавляем их
-            if row:
-                self.markup.add(*row)
         await bot.edit_message_text(
             chat_id=self.call.message.chat.id,
             message_id=self.call.message.message_id,
-            text=text,
+            text=response_text,
             reply_markup=self.markup,
             parse_mode="HTML"
         )
+
+    async def process_buttons(self, buttons, buttons_row):
+        """ Обработка как словарей (вложенных), так и списков списков кнопок """
+
+        # ✅ Если это список списков (как row_date в календаре)
+        if isinstance(buttons, list):
+            for item in buttons:
+                if isinstance(item, list):  # список кнопок в строке
+                    self.markup.row(*item)
+                elif isinstance(item, InlineKeyboardButton):  # одиночная кнопка в отдельной строке
+                    self.markup.row(item)
+            return
+
+        # ✅ Если это словарь — обрабатываем вложенность
+        row = []
+
+        for key, value in buttons.items():
+            if isinstance(value, dict):
+                if row:
+                    self.markup.add(*row)
+                    row = []
+                await self.process_buttons(value, buttons_row)
+                continue
+
+            if 'http' not in value:
+                row.append(InlineKeyboardButton(key, callback_data=value))
+            else:
+                row.append(InlineKeyboardButton(key, url=value))
+
+            if len(row) == buttons_row:
+                self.markup.add(*row)
+                row = []
+
+        if row:
+            self.markup.add(*row)
 
     async def show_start_menu(self, message):
         buttons_name = ["Начать"]
@@ -708,7 +667,7 @@ class Main:
                     add[k] = v
                 else:
                     add[k] = k
-            await self.edit_message(response_text, add=add)
+            await self.edit_message(response_text, buttons=add, buttons_row=1)
             # Формируем путь с подчёркиванием последнего ключа
 
     async def control_buttons(self):
@@ -874,7 +833,7 @@ class Main:
 
         text = self.select_command if self.select_command != 'admins' else 'Админы'
         response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Доступ к боту - Закрыть доступ -  <u>{text}</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-        await self.edit_message(response_text, add=add, add_row=3, add2=add2, add2_row=2)
+        await self.edit_message(response_text, buttons=add)
 
     async def dell_list(self):
         # Загружаем данные из файла
@@ -980,10 +939,10 @@ class Main:
             button_text = f"{icon} {keys}"
             add[button_text] = f"toggle_{keys}_Видео_{self.select_command}"
 
-        add2 = {'Отмена!': 'cancel_dell_video', "💾 Сохранить!": 'save_dell_video'}
+        add['Закрыть'] = {'Отмена!': 'cancel_dell_video', "💾 Сохранить!": 'save_dell_video'}
 
         response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать видео - <u>Удалить видео</u> .\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
-        await self.edit_message(response_text, add=add, add_row=3, add2=add2, add2_row=2)
+        await self.edit_message(response_text, buttons=add)
 
     async def edit_statistic(self):
         buttons_name = ["Добавить статистику", "Удалить статистику"]
@@ -1011,11 +970,11 @@ class Main:
             button_text = f"{icon} {keys}"
             add[button_text] = f"toggle_{keys}_Стат_{self.select_command}"
 
-        add2 = {'Отмена!': 'cancel_dell_stat', '💾 Сохранить!': 'save_dell_stat'}
+        add['Закрыть'] = {'Отмена!': 'cancel_dell_stat', '💾 Сохранить!': 'save_dell_stat'}
 
         response_text = f"Вы находитесь в разделе: Главное меню - Управление -  Редактирование команд - {self.select_command} - Редактировать статистику - <u>Удалить статистику</u> .\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел:"
 
-        await self.edit_message(response_text, add=add, add_row=3, add2=add2, add2_row=2)
+        await self.edit_message(response_text, buttons=add)
 
     async def the_survey(self):
         buttons_name = ["Новый опрос", "Удалить опрос", "Редактировать опрос", "Результаты опросов"]
@@ -1038,33 +997,46 @@ class Main:
             text_responce = "\n".join(
                 f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - <u>Дата</u>.\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату игры/тренировки:"
-        elif 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
-                self.state_stack.keys()):
-            response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - <u>Дата</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите дату:"
+        elif 'Новый опрос' not in self.state_stack and 'Редактировать опрос' not in self.state_stack:
+            response_text = (
+                "Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - "
+                "<u>Дата</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. "
+                "В начало /start \n\nВыберите дату:"
+            )
 
         cal = calendar.monthcalendar(year, month)
-        buttons = [f"{tmonth_names[month]} {year}", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+        buttons = []
+
+        # Заголовок: Апрель 2025
+        buttons.append([InlineKeyboardButton(f"{tmonth_names[month]} {year}", callback_data="ignore")])
+
+        # Дни недели
+        buttons.append(
+            [InlineKeyboardButton(day, callback_data="ignore") for day in ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]])
 
         # Дни месяца
         for week in cal:
-            row = []
+            week_buttons = []
             for day in week:
                 if day == 0:
-                    row.append(InlineKeyboardButton(" ", callback_data="ignore"))
+                    week_buttons.append(InlineKeyboardButton(" ", callback_data="ignore"))
                 else:
-                    row.append(InlineKeyboardButton(
-                        str(day),
-                        callback_data=f"day_{year}_{month:02d}_{day:02d}"
-                    ))
-            buttons.append(row)
+                    week_buttons.append(
+                        InlineKeyboardButton(str(day), callback_data=f"day_{year}_{month:02d}_{day:02d}")
+                    )
+            buttons.append(week_buttons)
 
+        # Переключатели месяцев
         prev_month, prev_year = (month - 1, year) if month > 1 else (12, year - 1)
         next_month, next_year = (month + 1, year) if month < 12 else (1, year + 1)
+        buttons.append([
+            InlineKeyboardButton("<", callback_data=f"prev_{prev_year}_{prev_month}"),
+            InlineKeyboardButton(">", callback_data=f"next_{next_year}_{next_month}")
+        ])
 
-        buttons.append(InlineKeyboardButton("<", callback_data=f"prev_{prev_year}_{prev_month}"))
-        buttons.append(InlineKeyboardButton(">", callback_data=f"next_{next_year}_{next_month}"))
-
-        await self.edit_message(response_text, row_date=buttons)
+        # Рендерим через edit_message, который теперь умеет обрабатывать список списков
+        await self.edit_message(response_text, buttons=buttons)
 
     async def newsurvey(self):
         if list(self.state_stack.keys())[-1] == 'Новый опрос':
@@ -1112,11 +1084,12 @@ class Main:
                  for
                  time in
                  times[i:i + 4]])
+        buttons.append([
+            InlineKeyboardButton("<", callback_data=f"back_hours"),
+            InlineKeyboardButton(">", callback_data=f"up_hour")
+        ])
 
-        buttons.append(InlineKeyboardButton("<", callback_data=f"back_hours"))
-        buttons.append(InlineKeyboardButton(">", callback_data=f"up_hour"))
-
-        await self.edit_message(response_text, row_time=buttons)
+        await self.edit_message(response_text, buttons=buttons)
 
     async def getaddress(self):
         text_responce = "\n".join(
@@ -1176,38 +1149,32 @@ class Main:
             [InlineKeyboardButton(str(price), callback_data=f"price_{price}") for price in prices]
         ]
 
-        await self.edit_message(response_text, row_price=buttons)
+        await self.edit_message(response_text, buttons=buttons)
 
     async def selectsendsurvey(self):
+
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
         data = await self.load_data()
         users = {name: name for name in data["commands"].keys()}
         users['Админы'] = 'Админы'
 
         # Создание кнопок
-        buttons = [
-            [
-                InlineKeyboardButton(
-                    f"{'✅' if value in self.selected_list else '❌'} {key}",
-                    callback_data=f"toggle_{value}"
-                )
-                for key, value in users.items()
-            ]
-        ]
+        buttons = {f"{'✅' if value in self.selected_list else '❌'} {key}": f"toggle_{value}" for key, value in
+                   users.items()}
         if list(self.state_stack.keys())[-1] == 'Новый опрос':
 
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Новый опрос - {self.user_data[self.unique_id]['Тип']} - Дата - Время - Адрес - Цена - <u>Получатели опроса</u>\n\n{text_responce}.\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыберите команду для опроса:"
+            buttons['end'] = {"Дальше": f"select_send_command"}
 
-            add = {"Дальше": "select_send_command"}
         elif 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
                 self.state_stack.keys()):
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Получатели</u>\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете получателей:"
-            add = {"Сохранить": "select_send_command"}
+            buttons['end'] = {"Сохранить": "select_send_command"}
         else:
             self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = f"Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить получателей</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете команды:"
-            add = {"Сохранить": "select_send_command"}
-        await self.edit_message(response_text, row_price=buttons, add_end=add)
+            buttons['end'] = {"Сохранить": "select_send_command"}
+        await self.edit_message(response_text, buttons=buttons)
 
     async def select_date_send_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
@@ -1229,7 +1196,7 @@ class Main:
         else:
             self.state_stack = dict(list(self.state_stack.items())[:3])
             response_text = "Вы находитесь в разделе: Главное меню - Управление - Редактировать опрос - <u>Изменить время отправки опроса</u>.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите время:"
-        await self.edit_message(response_text, row_price=buttons)
+        await self.edit_message(response_text, buttons=buttons)
 
     async def save_survey(self):
         text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
@@ -1263,7 +1230,7 @@ class Main:
             self.user_data[self.unique_id]['Напоминание отправлено'] = "Нет"
             if "surveys" not in data:
                 data["reminder"] = {}
-            data["reminder"][self.unique_id] = self.user_data[self.unique_id]  # <-- Убрал .values()
+            data["reminder"][self.unique_id] = self.user_data[self.unique_id]
             response_text = 'Напоминание запланировано'
         # Проверяем, есть ли "surveys" в config, если нет - создаем пустой словарь
 
@@ -1307,9 +1274,9 @@ class Main:
         # Убираем ключи с значением None
         add = {key: value for key, value in add.items() if value is not None}
 
-        add2 = {"Отмена": "cansel_survey", "Удалить опрос": "dell_survey"}
+        add['end'] = {"Отмена": "cansel_survey", "Удалить опрос": "dell_survey"}
 
-        await self.edit_message(response_text, add=add, add_row=2, add2=add2, add2_row=2)
+        await self.edit_message(response_text, buttons=add, buttons_row=2)
 
     async def save_dell_survey(self):
         data = await self.load_data()
@@ -1340,6 +1307,7 @@ class Main:
             'Отметились', 'Количество отметившихся', 'id опроса', 'Опрос отправлен', 'Опрос открыт'))
         response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
                           'используйте команду /back. В начало /start\n\nВыберите раздел:')
+
         add = {
             "<": "mainprevedit" if self.current_index > 0 else None,
             ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
@@ -1348,18 +1316,18 @@ class Main:
         # Убираем ключи с значением None
         add = {key: value for key, value in add.items() if value is not None}
 
-        edit_buttons = [[
-            InlineKeyboardButton("Изменить тип", callback_data="edit_typeplay"),
-            InlineKeyboardButton("Изменить дату тренировки/игры", callback_data="edit_newsurvey"),
-            InlineKeyboardButton("Изменить время тренировки/игры", callback_data="edit_generatetime"),
-            InlineKeyboardButton("Изменить адрес", callback_data="edit_getaddress"),
-            InlineKeyboardButton("Изменить цену", callback_data="edit_getprice"),
-            InlineKeyboardButton("Изменить получателей", callback_data="edit_selectsendsurvey"),
-            InlineKeyboardButton("Изменить дату отправки опроса", callback_data="edit_newsurveysend"),
-            InlineKeyboardButton("Изменить время отправки опроса", callback_data="edit_timesendsurvey")
+        add['edit'] = {
+            "Изменить тип": "edit_typeplay",
+            "Изменить дату тренировки/игры": "edit_newsurvey",
+            "Изменить время тренировки/игры": "edit_generatetime",
+            "Изменить адрес": "edit_getaddress",
+            "Изменить цену": "edit_getprice",
+            "Изменить получателей": "edit_selectsendsurvey",
+            "Изменить дату отправки опроса": "edit_newsurveysend",
+            "Изменить время отправки опроса": "edit_timesendsurvey",
+        }
 
-        ]]
-        await self.edit_message(response_text, add=add, add_row=2, row_price=edit_buttons)
+        await self.edit_message(response_text, buttons=add, buttons_row=3)
 
     async def save_edit(self):
         data = await self.load_data()
@@ -1421,7 +1389,7 @@ class Main:
         # Убираем ключи с значением None
         add = {key: value for key, value in add.items() if value is not None}
 
-        await self.edit_message(response_text, add=add, add_row=2)
+        await self.edit_message(response_text, buttons=add)
 
     async def reminder(self):
         buttons_name = ["Создать напоминание", "Редактировать напоминание", "Результаты напоминаний"]
@@ -1437,9 +1405,72 @@ class Main:
         await self.edit_message(response_text, buttons)
 
     async def user_receipts_reminder(self):
-        self.data = await self.load_data()
-        text_responce = "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in game_data.items())
-        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Получатели</u>\n\n{text_responce}.\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберете получателей:"
+        data = await self.load_data()
+        self.surveys = [command for command in data["commands"].keys() if data["commands"][command]['users']] + [
+            'Админы']  # Преобразуем в список для удобства доступа по индексу
+        users = self.surveys[self.current_index]
+
+        # Инициализация "Получатели напоминания" если его еще нет
+        if 'Получатели напоминания' not in self.user_data[self.unique_id]:
+            self.user_data[self.unique_id]['Получатели напоминания'] = {}
+
+        # Инициализация получателей напоминаний, если еще не существует
+        if users not in self.user_data[self.unique_id]['Получатели напоминания']:
+            self.user_data[self.unique_id]['Получатели напоминания'][users] = {}
+
+        # Удаляем пользователей, которых больше нет в списке
+        users_to_remove = [user for user in self.user_data[self.unique_id]['Получатели напоминания'][users] if
+                           user not in self.selected_list]
+        for user in users_to_remove:
+            del self.user_data[self.unique_id]['Получатели напоминания'][users][user]
+
+        # Добавляем выбранных пользователей в список получателей напоминаний
+        for user in self.selected_list:
+            if users != 'Админы':
+                for key, value in data["commands"][users]["users"].items():
+                    if user == value:
+                        self.user_data[self.unique_id]['Получатели напоминания'][users][str(key)] = str(
+                            value.split('_')[-1])
+            else:
+                for key, value in data["admins"].items():
+                    if user == value:
+                        self.user_data[self.unique_id]['Получатели напоминания'][users][str(key)] = str(
+                            value.split('_')[-1])
+
+        # Проверяем, если в команде нет пользователей, удаляем команду из "Получатели напоминания"
+        if not self.user_data[self.unique_id]['Получатели напоминания'][users]:
+            del self.user_data[self.unique_id]['Получатели напоминания'][users]
+
+        # Формируем ответ
+        text_responce = "\n".join(
+            f"{k}: {v}"
+            for game_data in self.user_data.values()
+            for k, v in game_data.items()
+            if k != 'Получатели напоминания'
+        )
+        text_responce += '\nПолучатели напоминания:\n' + await self.format_dict(
+            self.user_data[self.unique_id]['Получатели напоминания'], base_indent=4)
+        response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - Создать напоминание - Дата - Время - Текст напоминания - <u>Получатели</u>\n\n{text_responce}\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nКоманда: {users} \n\nВыберите получателей:"
+
+        # Формирование кнопок для получателей на основе команды
+        if users != 'Админы':
+            buttons = {f"{'✅' if value in self.selected_list else '❌'} {key}": f"toggle_{value}"
+                       for key, value in data["commands"][users]["users"].items()}
+        else:
+            buttons = {f"{'✅' if value in self.selected_list else '❌'} {key}": f"toggle_{value}"
+                       for key, value in data["admins"].items()}
+
+        # Кнопки навигации для перехода между командами
+        buttons['end'] = {
+            "<": "mainprevedit" if self.current_index > 0 else None,
+            ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
+        }
+
+        # Убираем ключи с значением None
+        buttons['end'] = {key: value for key, value in buttons['end'].items() if value is not None}
+        buttons['Закрыть'] = {'Отмена!': 'cancel_send_survey', '💾 Сохранить!': 'save_send_survey'}
+        # Отправка сообщения с кнопками
+        await self.edit_message(response_text, buttons=buttons)
 
 
 async def main():
