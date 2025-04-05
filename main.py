@@ -46,13 +46,16 @@ class Main:
         self.admin = None
 
     async def async_survey(self):
-        await self.survey()
+        await self.send_survey()
+
+    async def async_reminder(self):
+        await self.send_reminder()
 
     async def async_init(self):
         await self.start_main()
 
     # отправка, закрытие, получение результатов опроса
-    async def survey(self):
+    async def send_survey(self):
         while True:
             try:
                 data = await self.load_data()
@@ -76,9 +79,9 @@ class Main:
                             ) - timedelta(minutes=30)
 
                             day_index = days_week[target_date2.weekday()]
-                            #
+
                             current_date = datetime.now().replace(second=0, microsecond=0)
-                            #
+                            poll_message = None
                             #         # отправка опроса
                             if target_date == current_date and target_date2 >= current_date and survey_data.get(
                                     'Опрос отправлен') == 'Нет' and survey_data.get('Получатели опроса'):
@@ -100,19 +103,68 @@ class Main:
                                             explanation_parse_mode='HTML'
                                         )
 
-                                        survey_data['Опрос отправлен'] = "Да"
-                                        survey_data["Опрос открыт"] = "Да"
-                                        survey_data['id опроса'] = poll_message.poll.id
-                                        await self.write_data(data)
-
                                     except Exception as e:
                                         print(f"Ошибка при отправке опроса пользователю {user}: {e}")
-                            #     # опрос автоматически закрывается, когда наступает время закрытие, то изменяем также значения
+
+                                survey_data['Опрос отправлен'] = "Да"
+                                survey_data["Опрос открыт"] = "Да"
+                                survey_data['id опроса'] = poll_message.poll.id
+                                await self.write_data(data)
+
+                            # опрос автоматически закрывается, когда наступает время закрытие, то изменяем также значения
                             elif target_date2 <= current_date and 'Да' in (
                                     survey_data.get('Опрос открыт'), survey_data.get('Опрос отправлен')):
                                 survey_data["Опрос открыт"] = "Нет"
                                 await self.write_data(data)
 
+            except:
+                pass
+
+    async def send_reminder(self):
+        while True:
+            try:
+                data = await self.load_data()
+                for survey_id, survey_data in data['reminder'].items():
+
+                    target_date = datetime.strptime(
+                        f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
+                        "%d-%m-%Y %H:%M")
+                    current_date = datetime.now().replace(second=0, microsecond=0)
+                    command_list = survey_data.get('Получатели напоминания')
+
+                    if survey_data.get('Текст напоминания') and target_date == current_date and survey_data.get(
+                            'Напоминание отправлено') == 'Нет':
+                        if type(command_list) == str:
+                            users = set([
+                                            str(user).split('_')[-1]
+                                            for command in str(command_list).split(',')
+                                            if command != 'Админы'
+                                            for user in data['commands'][command]['users'].values()
+                                        ] + [str(user).split('_')[-1] for command in str(command_list).split(',') if
+                                             command == 'Админы' for user in data['admins'].values()])
+
+                            for user in users:
+                                try:
+                                    response_text = survey_data.get('Текст напоминания')
+                                    await bot.send_message(user, response_text)
+                                except:
+                                    pass
+                            survey_data['Напоминание отправлено'] = "Да"
+                            await self.write_data(data)
+
+                        else:
+
+                            users = set([user for command in command_list.keys() for keys, user in
+                                     command_list[command].items()])
+                            for user in users:
+                                try:
+                                    response_text = survey_data.get('Текст напоминания')
+                                    await bot.send_message(user, response_text)
+                                except:
+                                    pass
+
+                            survey_data['Напоминание отправлено'] = "Да"
+                            await self.write_data(data)
             except:
                 pass
 
@@ -393,7 +445,7 @@ class Main:
                             await self.selectsendsurvey()
                         elif 'Новый опрос' not in list(self.state_stack.keys()) and 'Редактировать опрос' not in list(
                                 self.state_stack.keys()) and 'Напоминание' not in list(
-                                self.state_stack.keys()) :
+                            self.state_stack.keys()):
                             if user_key in self.selected_list:
                                 self.selected_list.remove(user_key)  # Убираем из списка
                             else:
@@ -1478,12 +1530,14 @@ async def main():
 
     # Запускаем async_survey в отдельной задаче
     survey_task = asyncio.create_task(bot_instance.async_survey())
+    survey_task_2 = asyncio.create_task(bot_instance.async_reminder())
     # Ждём завершения async_init
     await bot_instance.async_init()
     # Ожидаем завершения опроса бота
     await bot.infinity_polling()
     # Опционально: дожидаемся завершения survey_task
     await survey_task
+    await survey_task_2
 
 
 if __name__ == "__main__":
