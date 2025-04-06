@@ -575,6 +575,7 @@ class Main:
     async def main_control(self):
         buttons_name = ["Открыть доступ", "Закрыть доступ"]
         buttons = {name: name for name in buttons_name}
+
         await self.edit_message(await self.history(), buttons)
 
     async def open_control(self):
@@ -623,21 +624,20 @@ class Main:
                 if len(users_not_write) == len(new_video_stats):
                     response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз'
                 elif len(users_not_write) != len(new_video_stats) and users_not_write:
-                    response_test = f'Некорректное добавление некоторых данных, в переданном списке это: {",".join(list(users_not_write.keys()))} .Ознакомьтесь с примерами и попробуйте еще раз'
-                    await self.delete_message(self.call.message)
+                    response_test = f"Некорректное добавление некоторых пользователей из переданного списка. Номера пользователей, которых не удалось добавить: {', '.join(list(users_not_write.keys()))}. Пожалуйста, ознакомьтесь с примерами и попробуйте снова."
                 else:
                     response_test = f'Успешно добавлено'
 
                 await bot.answer_callback_query(self.call.id, response_test,
                                                 show_alert=True)
-                await self.delete_message(self.call.message)
-                await self.back_history(self.call.message)
+                await self.delete_message(message)
+                await self.back_history(message)
             else:
-                await self.delete_message(self.call.message)
                 response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз'
                 await bot.answer_callback_query(self.call.id, response_test,
                                                 show_alert=True)
-                await self.back_history(self.call.message)
+                await self.delete_message(message)
+                await self.back_history(message)
 
     async def close_control(self):
         data = await storage.load_data()
