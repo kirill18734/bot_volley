@@ -1,14 +1,12 @@
 {
-    "my_telegram_bot": {
-        "bot_token": "7463798230:AAFMIHtAsVf60Z0q7r-ha9CbwJpkDUdLuoo",
-        "chat_id": "5444152518"
-    },
     "admins": {
         "Кирилл": "@life2232_5444152518"
     },
     "commands": {
         "Темп-1": {
-            "users": {},
+            "users": {
+                "Lena": "lenusik"
+            },
             "Отметиться на игру": "https://docs.google.com/spreadsheets/d/1Qll0JPN1R39B8idcoQFa5hZMRZAz71qVnVDZxp7l03I/edit?usp=sharing",
             "Состав": "https://volleymsk.ru/ap/members.php?id=9761",
             "Турнирная таблица": "https://volleymsk.ru/ap/trntable.php?trn=1710",
