@@ -169,9 +169,9 @@ class Main:
                 "Закрыть доступ": self.close_control,
                 "Редактирование команд": self.edit_command,
                 "Редактировать видео": self.edit_video,
+                "Редактировать статистику": self.edit_statistic,
                 "Добавить видео": self.edit_commands,
                 "Удалить видео": self.edit_commands,
-                "Редактировать статистику": self.edit_statistic,
                 "Добавить статистику": self.edit_commands,
                 "Удалить статистику": self.edit_commands,
                 "dell_data": self.dell_list,
@@ -747,9 +747,10 @@ class Main:
         await self.edit_message(buttons=buttons)
 
     async def typeplay(self):
-        self.unique_id = str(uuid.uuid4())
-        if self.unique_id not in self.user_data:
+        if not self.user_data:
+            self.unique_id = str(uuid.uuid4())
             self.user_data[self.unique_id] = {}
+
         buttons_name = ["Игра", "Тренировка", "Товарищеская игра"]
         buttons = {name: name for name in buttons_name}
         await self.edit_message(buttons=buttons)
