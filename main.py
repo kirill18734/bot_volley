@@ -87,6 +87,7 @@ class Main:
                 [k for game_data in self.user_data.values() for k, v in game_data.items()]) else None
             if result:
                 del self.state_stack[result[-1]]
+
         response_text = ' - '.join(list(self.state_stack.keys())[:-1]) + ' - <u>' + list(self.state_stack.keys())[
             -1] + '</u>' if self.state_stack else ''
 
@@ -97,6 +98,30 @@ class Main:
                 list(self.state_stack.keys())[-2] in ('Открыть доступ') else ''
             response_text += f"\n\nНапишите название  и ссылку для добавления через двоеточие, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg\nТакже можно добавлять списком несколько ссылок через запятую, пример:\nСезон 2024-2025:https://disk.yandex.ru/d/bWFMzczzg, Сезон 2025-2026:https://disk.yandex.ru/d/bW343Mzczzg" if \
                 list(self.state_stack.keys())[-2] in ['Добавить статистику', 'Добавить видео'] else ''
+            if 'Удалить опрос' in self.state_stack or 'Редактировать опрос' in self.state_stack:
+                survey_id, survey_data = self.surveys[self.current_index]
+
+                response_text += f"\n\n<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+                response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
+                    'Опрос открыт', 'Опрос отправлен', 'Отметились', 'Количество отметившихся', 'id опроса'))
+
+            elif 'Редактировать напоминание' in self.state_stack:
+                data = await storage.load_data()
+                survey_id, survey_data = self.surveys[self.current_index]
+                response_text += f"\n\n<b>Напоминание {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
+                response_text += "\n".join(
+                    f"{k}: {v}"
+                    for k, v in survey_data.items()
+                    if k not in ('Получатели напоминания', 'Напоминание отправлено')
+                )
+
+                if type(data["reminder"][survey_id]['Получатели напоминания']) != str:
+                    response_text += '\nПолучатели напоминания:\n' + await self.format_dict(
+                        data["reminder"][survey_id]['Получатели напоминания'], base_indent=4)
+                else:
+                    response_text += '\nПолучатели напоминания:' + data["reminder"][survey_id][
+                        'Получатели напоминания']
+
         response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
                                             game_data.items()) if 'Новый опрос' in self.state_stack else ''
 
@@ -248,7 +273,7 @@ class Main:
                 "save": self.save,
                 "Удалить опрос": self.del_survey,
                 "cansel_survey": self.the_survey,
-                "dell_survey": self.save_dell_survey,
+                "save_dell_survey": self.dell_list,
                 "Результаты опросов": self.result_surveys,
                 "Редактировать опрос": self.edit_survey,
                 "Напоминание": self.reminder,
@@ -258,9 +283,7 @@ class Main:
             # Объединяем словари
             actions = {**actions, **extra_actions}
 
-            if self.call.data == 'Команды':
-                await self.selectsendsurvey()
-            elif self.call.data == 'cancellation':
+            if self.call.data == 'cancellation':
                 self.selected_list.clear()
                 await self.back_history(call.message)
             elif 'Начать' in [self.call.data] + list(self.state_stack.keys()):
@@ -342,6 +365,12 @@ class Main:
                         self.user_data[self.unique_id]['Цена'] = f"{price}"
                         await self.selectsendsurvey()
 
+                elif self.call.data in ("nextdell", "prevdell"):
+                    direction = {"nextdell": 1, "prevdell": -1}[self.call.data]
+                    new_index = self.current_index + direction
+                    if 0 <= new_index < len(self.surveys):
+                        self.current_index = new_index
+                        await self.del_survey()
 
             else:
                 await self.back_history(call.message)
@@ -589,7 +618,7 @@ class Main:
         # Загружаем данные из файла
         data = await storage.load_data()
         if self.select_command and self.selected_list:
-            if 'Закрыть доступ' in list(self.state_stack.keys()):
+            if 'Закрыть доступ' in self.state_stack:
                 if self.select_command == 'admins' and (
                         len(data['admins'].keys()) == 1 or len(data['admins'].keys()) == len(
                     self.selected_list)) and self.selected_list:
@@ -621,7 +650,7 @@ class Main:
                     await bot.answer_callback_query(self.call.id, response_text,
                                                     show_alert=True)
 
-            else:
+            elif 'Редактирование команд' in self.state_stack:
                 text = 'Видео' if 'Удалить видео' in list(self.state_stack.keys()) else 'Статистика'
                 # Удаляем пользователей
                 if self.selected_list:
@@ -637,11 +666,22 @@ class Main:
                     response_text = 'Ссылки удалены' if len(self.selected_list) > 1 else 'Ссылка удалена'
                     await bot.answer_callback_query(self.call.id, response_text,
                                                     show_alert=True)
+        elif 'Удалить опрос' in self.state_stack:
+            key_del = self.surveys[self.current_index][0]
+            del data["surveys"][key_del]
+            # Сохраняем обновленные данные обратно в файл
+            await storage.write_data(data)  # Передаем измененные данные в функцию сохранения
+            response_text = 'Опрос удален'
+            await bot.answer_callback_query(self.call.id, response_text,
+                                            show_alert=True)
+            self.state_stack = dict(list(self.state_stack.items())[:-1])
+            self.current_index = 0
+            await self.back_history(self.call.message)
 
         else:
             self.state_stack = dict(list(self.state_stack.items())[:-2])
             await self.back_history(self.call.message)
-        self.selected_list.clear()
+            self.selected_list.clear()
 
     async def edit_command(self):
         buttons_name = ["Редактировать видео", "Редактировать статистику"]
@@ -843,91 +883,48 @@ class Main:
         await self.back_history(self.call.message)
 
     async def del_survey(self):
-        self.data = await storage.load_data()
+        data = await storage.load_data()
         """Отображает текущий опрос с кнопками навигации"""
-        self.surveys = list(self.data["surveys"].items())
+        self.surveys = list(data["surveys"].items())
+
         if not self.surveys:
             response_text = 'Нет доступных опросов.'
             await bot.answer_callback_query(self.call.id, response_text,
                                             show_alert=True)
             return
-
-        survey_id, survey_data = self.surveys[self.current_index]
-        response_text = f"Вы находитесь в разделе: Главное меню - Управление - <u>Удалить опрос</u>.\n\n"
-
-        response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-        response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
-            'Опрос открыт', 'Опрос отправлен', 'Отметились', 'Количество отметившихся', 'id опроса'))
-        response_text += '\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, используйте команду /back. В начало /start\n\nВыбирете опрос для удаления:'
         add = {
             "<": "prevdell" if self.current_index > 0 else None,
             ">": "nextdell" if self.current_index < len(self.surveys) - 1 else None
         }
-
         # Убираем ключи с значением None
         add = {key: value for key, value in add.items() if value is not None}
-
-        add['end'] = {"Отмена": "cancellation", "Удалить опрос": "dell_survey"}
-
-        await self.edit_message(response_text, buttons=add, buttons_row=2)
-
-    async def save_dell_survey(self):
-        data = await storage.load_data()
-        key_del = self.surveys[self.current_index][0]
-        del data["surveys"][key_del]
-        # Сохраняем обновленные данные обратно в файл
-        await storage.write_data(data)  # Передаем измененные данные в функцию сохранения
-        response_text = 'Опрос удален'
-        await bot.answer_callback_query(self.call.id, response_text,
-                                        show_alert=True)
-        self.current_index = 0
-        await self.the_survey()
+        add['end'] = {"Назад": "cancellation", "Удалить опрос": "save_dell_survey"}
+        await self.edit_message(buttons=add)
 
     async def edit_survey(self):
-        self.data = await storage.load_data()
+        data = await storage.load_data()
+
         """Отображает текущий опрос с кнопками навигации"""
-        if list(self.state_stack.keys())[-1] != 'Редактировать напоминание':
-            self.surveys = list(self.data["surveys"].items())
+        if 'Редактировать опрос' in self.state_stack:
+            self.surveys = list(data["surveys"].items())
+
+            self.user_data = self.surveys[self.current_index][-1]
+            print(self.user_data)
+            # key, self.user_data = self.surveys[self.current_index]
+
             if not self.surveys:
                 response_text = 'Нет доступных опросов.'
                 await bot.answer_callback_query(self.call.id, response_text, show_alert=True)
                 return
         else:
-            self.surveys = list(self.data["reminder"].items())
+            self.surveys = list(data["reminder"].items())
+            # key, self.user_data = self.surveys[self.current_index]
+
             if not self.surveys:
                 response_text = 'Нет доступных напоминаний.'
                 await bot.answer_callback_query(self.call.id, response_text, show_alert=True)
                 return
 
-        survey_id, survey_data = self.surveys[self.current_index]
-
-        if list(self.state_stack.keys())[-1] != 'Редактировать напоминание':
-            response_text = f"Вы находитесь в разделе: Главное меню - Управление - <u>Редактировать опрос</u>.\n\n"
-
-            response_text += f"<b>Опрос {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-            response_text += "\n".join(f"{k}: {v}" for k, v in survey_data.items() if k not in (
-                'Отметились', 'Количество отметившихся', 'id опроса', 'Опрос отправлен', 'Опрос открыт'))
-            response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
-                              'используйте команду /back. В начало /start\n\nВыберите раздел:')
-        else:
-            response_text = f"Вы находитесь в разделе: Главное меню - Управление - Напоминание - <u>Редактировать напоминание</u>.\n\n"
-
-            response_text += f"<b>Напоминание {self.current_index + 1} из {len(self.surveys)}</b>\n\n"
-
-            response_text += "\n".join(
-                f"{k}: {v}"
-                for k, v in survey_data.items()
-                if k not in ('Получатели напоминания', 'Напоминание отправлено')
-            )
-
-            if type(self.data["reminder"][survey_id]['Получатели напоминания']) != str:
-                response_text += '\nПолучатели напоминания:\n' + await self.format_dict(
-                    self.data["reminder"][survey_id]['Получатели напоминания'], base_indent=4)
-            else:
-                response_text += '\nПолучатели напоминания:' + self.data["reminder"][survey_id][
-                    'Получатели напоминания']
-            response_text += ('\n\nИспользуйте кнопки для навигации. Чтобы вернуться на шаг назад, '
-                              'используйте команду /back. В начало /start\n\nВыберите раздел:')
         add = {
             "<": "mainprevedit" if self.current_index > 0 else None,
             ">": "mainnextedit" if self.current_index < len(self.surveys) - 1 else None
@@ -935,7 +932,7 @@ class Main:
 
         # Убираем ключи с значением None
         add = {key: value for key, value in add.items() if value is not None}
-        if list(self.state_stack.keys())[-1] != 'Редактировать напоминание':
+        if 'Редактировать опрос' in self.state_stack:
             add['edit'] = {
                 "Изменить тип": "edit_typeplay",
                 "Изменить дату тренировки/игры": "edit_newsurvey",
@@ -946,7 +943,7 @@ class Main:
                 "Изменить дату отправки опроса": "edit_newsurveysend",
                 "Изменить время отправки опроса": "edit_timesendsurvey",
             }
-        else:
+        elif 'Редактировать напоминание' in self.state_stack:
             add['edit'] = {
                 "Изменить дату отправки напоминания": "edit_newsurvey",
                 "Изменить время отправки напоминания": "edit_timesendsurvey",
@@ -954,10 +951,11 @@ class Main:
                 "Изменить получателей напоминания": "edit_receipts_reminder"
             }
 
-        await self.edit_message(response_text, buttons=add, buttons_row=3)
+        await self.edit_message(buttons=add, buttons_row=3)
 
     async def save_edit(self):
         data = await storage.load_data()
+
         key_del = self.surveys[self.current_index][0]
         new_value = self.call.data.split("_")
 
@@ -997,9 +995,9 @@ class Main:
         return result
 
     async def result_surveys(self):
-        self.data = await storage.load_data()
+        data = await storage.load_data()
         """Отображает текущий опрос с кнопками навигации"""
-        self.surveys = list(self.data["surveys"].items())
+        self.surveys = list(data["surveys"].items())
         if not self.surveys:
             response_text = 'Нет доступных опросов.'
             await bot.answer_callback_query(self.call.id, response_text, show_alert=True)
