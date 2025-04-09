@@ -909,7 +909,7 @@ class Main:
             self.surveys = list(data["surveys"].items())
 
             self.user_data = self.surveys[self.current_index][-1]
-            print(self.user_data)
+
             # key, self.user_data = self.surveys[self.current_index]
 
             if not self.surveys:
