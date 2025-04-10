@@ -125,12 +125,13 @@ class Main:
                     response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
                                                         game_data.items() if k not in (
                                                             'Отметились', 'Количество отметившихся',
-                                                            'id опроса'))
+                                                            'id опроса', 'Напоминание отправлено',
+                                                            'Получатели напоминания'))
                 if any(state in self.state_stack for state in
                        ['Результаты опросов', 'Результаты напоминаний']):
                     response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
                                                         game_data.items() if k not in (
-                                                            'id опроса'))
+                                                            'id опроса', 'Получатели напоминания'))
                 if any(state in self.state_stack for state in
                        ['Редактировать опрос', 'Редактировать напоминание']):
                     response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
@@ -138,9 +139,11 @@ class Main:
                                                             'Отметились', 'Количество отметившихся', 'id опроса',
                                                             'Опрос отправлен',
                                                             'Опрос открыт', 'Получатели напоминания'))
-                    response_text += f"'\nПолучатели напоминания:\n{await self.format_dict(value['Получатели напоминания'], base_indent=4)}\n" if 'Редактировать напоминание' in self.state_stack and type(
+                if any(state in self.state_stack for state in
+                       ['Редактировать напоминание', 'Удалить напоминание', 'Результаты напоминаний']):
+                    response_text += f"'\nПолучатели напоминания:\n{await self.format_dict(value['Получатели напоминания'], base_indent=4)}\n" if type(
                         value['Получатели напоминания']) != str else '\nПолучатели напоминания: ' + value[
-                        'Получатели напоминания'] if 'Редактировать напоминание' in self.state_stack or 'Результаты напоминаний' in self.state_stack else ''
+                        'Получатели напоминания']
 
         response_text += f"""\n\nИспользуй кнопки для навигации. Чтобы вернуться на шаг назад, используй команду /back. В начало /start \n\nВыберите раздел {f'(интервал - {f"{self.hour}ч" if self.hour != 2.5 else "2ч30м"} )' if 'Дата тренировки/игры' in [k for game_data in self.user_data.values() for k, v in game_data.items()] and "Время тренировки/игры" not in [k for game_data in self.user_data.values() for k, v in game_data.items()] else ''}:"""
 
@@ -290,6 +293,7 @@ class Main:
                 "Новое напоминание": self.generate_calendar,
                 "save": self.save,
                 "Удалить опрос": self.dell_edit_survey,
+                "Удалить напоминание": self.dell_edit_survey,
                 "cansel_survey": self.the_survey,
                 "save_dell_survey": self.dell_list,
                 "Редактировать опрос": self.dell_edit_survey,
@@ -302,6 +306,7 @@ class Main:
                 "Изменить дату отправки опроса": self.generate_calendar,
                 "Изменить время отправки опроса": self.timesendsurvey,
                 "Результаты опросов": self.dell_edit_survey,
+                "Результаты напоминаний": self.dell_edit_survey,
                 "Напоминание": self.reminder,
                 "Команды": self.selectsendsurvey,
                 "Редактировать напоминание": self.dell_edit_survey
@@ -429,8 +434,11 @@ class Main:
                 elif self.call.data in ("nextdell", "prevdell"):
                     data = await storage.load_data()
                     """Отображает текущий опрос с кнопками навигации"""
-                    # Предположим, что data["surveys"] - это словарь
-                    surveys_items = list(data["surveys"].items())
+                    text = 'surveys' if any(state in self.state_stack for state in
+                                            ['Редактировать опрос', 'Удалить опрос',
+                                             'Результаты опросов']) else 'reminder'
+
+                    surveys_items = list(data[text].items())
                     direction = {"nextdell": 1, "prevdell": -1}[self.call.data]
                     new_index = self.current_index + direction
                     if 0 <= new_index < len(surveys_items):
@@ -745,13 +753,16 @@ class Main:
                     response_text = 'Ссылки удалены' if len(self.selected_list) > 1 else 'Ссылка удалена'
                     await bot.answer_callback_query(self.call.id, response_text,
                                                     show_alert=True)
-        elif 'Удалить опрос' in self.state_stack:
-            surveys_items = list(data["surveys"].items())
+        elif 'Удалить опрос' in self.state_stack or 'Удалить напоминание' in self.state_stack:
+            text = 'surveys' if any(state in self.state_stack for state in
+                                    ['Удалить опрос']) else 'reminder'
+            surveys_items = list(data[text].items())
             surveys_key, _ = surveys_items[self.current_index]
-            del data["surveys"][surveys_key]
+            del data[text][surveys_key]
             # Сохраняем обновленные данные обратно в файл
             await storage.write_data(data)  # Передаем измененные данные в функцию сохранения
-            response_text = 'Опрос удален'
+            response_text = 'Напоминание удалено' if text == 'reminder' else 'surveys'
+
             await bot.answer_callback_query(self.call.id, response_text,
                                             show_alert=True)
             self.state_stack = dict(list(self.state_stack.items())[:-1]) if len(surveys_items) != 1 else dict(
@@ -887,7 +898,8 @@ class Main:
         buttons = {f"{'✅' if value in self.selected_list else '❌'} {key}": f"toggle_{value}" for key, value in
                    users.items()}
 
-        buttons['end'] = {f"{'Продолжить' if 'Новый опрос' in self.state_stack  or 'Новое напоминание' in self.state_stack else 'Изменить'}": "continue"}
+        buttons['end'] = {
+            f"{'Продолжить' if 'Новый опрос' in self.state_stack or 'Новое напоминание' in self.state_stack else 'Изменить'}": "continue"}
         await self.edit_message(buttons=buttons)
 
     async def survey_save(self):
@@ -929,7 +941,8 @@ class Main:
         elif 'Новое напоминание' in self.state_stack:
             self.user_data[self.unique_id]['Напоминание отправлено'] = "Нет"
             list_user_data = [k for game_data in self.user_data.values() for k, v in game_data.items()] + [
-                'Новое напоминание']
+                'Новое напоминание', 'Выбор получателей', 'Команды', 'Пользователи', 'save']
+
             for i in list_user_data:
                 if i in self.state_stack:
                     del self.state_stack[i]
@@ -991,8 +1004,9 @@ class Main:
                 "Изменить текст напоминания": "Изменить текст напоминания",
                 "Изменить получателей напоминания": "Изменить получателей напоминания"
             }
-        elif 'Удалить опрос' in self.state_stack:
-            add['end'] = {"Назад": "cancellation", "Удалить опрос": "save_dell_survey"}
+        elif 'Удалить опрос' in self.state_stack or 'Удалить напоминание' in self.state_stack:
+            add['end'] = {"Назад": "cancellation",
+                          f"Удалить {'опрос' if text == 'surveys' else 'напоминание'}": "save_dell_survey"}
         await self.edit_message(buttons=add, buttons_row=3)
 
     async def format_dict(self, d, indent=0, base_indent=4):
