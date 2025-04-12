@@ -101,7 +101,7 @@ class Main:
         response_text = ' - '.join(list(self.state_stack.keys())[:-1]) + ' - <u>' + list(self.state_stack.keys())[
             -1] + '</u>' if self.state_stack else ''
 
-        response_text = f"Вы находитесь в разделе: {response_text.replace('- <u>Главное меню</u>', '<u>Главное меню</u>').replace('admins', 'Админы')}"
+        response_text = f"Вы находитесь в разделе: {response_text.replace('- <u>Главное меню</u>', '<u>Главное меню</u>').replace('admins', 'Админы').replace('Изменить получателей нап', 'Изменить получателей напоминания')}"
         if len(self.state_stack) > 3:
             if any(state in list(self.state_stack.keys())[-2] for state in ['Открыть доступ']):
                 response_text += f"\n\nНапишите Ник и id пользователя для добавления через двоеточие, пример:\n Вася:2938214371 или Петя:@petya (можно без @). \nТакже можно добавлять списком нескольких пользователей через запятую, пример:\nВася:2938214371, Петя:@petya, Lena:lenusik"
@@ -129,7 +129,7 @@ class Main:
                 response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
                                                     game_data.items() if k not in (
                                                         'Отметились', 'Количество отметившихся',
-                                                        'id опроса', 'Напоминание отправлено',
+                                                        'id опроса',
                                                         'Получатели напоминания'))
 
             if any(state in self.state_stack for state in
@@ -142,11 +142,10 @@ class Main:
                 response_text += '\n\n' + "\n".join(f"{k}: {v}" for game_data in self.user_data.values() for k, v in
                                                     game_data.items() if k not in (
                                                         'Отметились', 'Количество отметившихся', 'id опроса',
-                                                        'Опрос отправлен',
-                                                        'Опрос открыт', 'Получатели напоминания'))
+                                                        'Опрос отправлен', 'Напоминание отправлено',
+                                                                           'Опрос открыт', 'Получатели напоминания'))
 
-            if any(state in self.state_stack for state in
-                   ['Пользователи', 'Команды']):
+            if any(state in self.state_stack for state in ['Пользователи', 'Команды']) and 'Новое напоминание' in self.state_stack:
                 new_data = deepcopy(self.user_data[self.unique_id]['Получатели напоминания'])
                 # Обновляем значения в словаре
                 if type(new_data) != str:
@@ -391,21 +390,18 @@ class Main:
                             self.selected_list.remove(user_key)  # Убираем из списка
                         else:
                             self.selected_list.add(user_key)  # Добавляем в список
-
                         await self.close()  # Перерисовываем кнопки с обновленными значениями
                     elif any(key in self.state_stack for key in
-                             ['Новый опрос', 'Редактировать опрос', 'Команды', 'Редактировать напоминание']):
+                             ['Новый опрос', 'Редактировать опрос', 'Команды', 'Редактировать напоминание',
+                              'Пользователи']):
                         if user_key in self.selected_list:
                             self.selected_list.remove(user_key)  # Убираем из списка
                         else:
                             self.selected_list.add(user_key)  # Добавляем в список
+                        if 'Пользователи' in self.state_stack:
+                            await self.user_receipts_reminder()
+                            return
                         await self.selectsendsurvey()
-                    elif 'Пользователи' in self.state_stack:
-                        if user_key in self.selected_list:
-                            self.selected_list.remove(user_key)  # Убираем из списка
-                        else:
-                            self.selected_list.add(user_key)  # Добавляем в список
-                        await self.user_receipts_reminder()
                 elif call.data.startswith("prev_") or call.data.startswith("next_"):
                     _, year, month = call.data.split("_")
                     await self.generate_calendar(int(year), int(month))
@@ -461,7 +457,7 @@ class Main:
                     elif any(key in self.state_stack for key in ['Редактировать опрос', 'Редактировать напоминание']):
                         if 'Изменить время тренировки/игры' in self.state_stack:
                             text = 'Время тренировки/игры'
-                        elif all(key in self.state_stack for key in ['Изменить время отправки' ,'Редактировать опрос']):
+                        elif all(key in self.state_stack for key in ['Изменить время отправки', 'Редактировать опрос']):
                             text = 'Время отправки опроса'
                         else:
                             text = 'Время отправки напоминания'
@@ -1006,8 +1002,10 @@ class Main:
         is_survey = any(state in self.state_stack for state in ["Новый опрос", "Редактировать опрос"])
         button_name = "Получатели опроса" if is_survey else "Получатели напоминания"
 
-        # Безопасная установка данных пользователя
-        self.user_data.setdefault(self.unique_id, {})
+        # Гарантируем, что self.user_data[self.unique_id] — словарь
+        if not isinstance(self.user_data.get(self.unique_id), dict):
+            self.user_data[self.unique_id] = {}
+
         self.user_data[self.unique_id][button_name] = ','.join(self.selected_list) if self.selected_list else ''
 
         # Кнопки завершения
@@ -1047,7 +1045,7 @@ class Main:
         elif 'Редактировать опрос' in self.state_stack or 'Редактировать напоминание' in self.state_stack:
             text = 'surveys' if 'Редактировать опрос' in self.state_stack else 'reminder'
             data[text][self.unique_id] = self.user_data[self.unique_id]
-            await self.pop_state(2)
+            await self.pop_state(1 if 'Изменить получателей нап' not in self.state_stack else 4)
             response_text = 'Изменено'
         elif 'Новое напоминание' in self.state_stack:
             self.user_data[self.unique_id]['Напоминание отправлено'] = "Нет"
@@ -1082,7 +1080,7 @@ class Main:
         # Если нет ни одного опроса/напоминания
         if not surveys_items:
             response_text = f'Нет доступных {"опросов" if text == "surveys" else "напоминаний"}.'
-            self.state_stack = dict(list(self.state_stack.items())[:-1])
+            await self.pop_state(1)
             await bot.answer_callback_query(self.call.id, response_text, show_alert=True)
             return
 
@@ -1091,12 +1089,20 @@ class Main:
         surveys_key, user_data = surveys_items[self.current_index]
         self.unique_id = surveys_key
         self.user_data[surveys_key] = user_data
-
         # Подгружаем выбранных получателей
-        if any(key in self.state_stack for key in ['Редактировать опрос', 'Команды']):
+
+        if any(key in self.state_stack for key in ['Редактировать опрос', 'Команды', 'Редактировать напоминание']):
             key_name = 'Получатели опроса' if 'Редактировать опрос' in self.state_stack else 'Получатели напоминания'
             receivers = self.user_data[self.unique_id].get(key_name)
-            if isinstance(receivers, str):
+            print(receivers)
+            if isinstance(receivers, dict):
+                # Рекурсивно собрать всех "имен" из вложенного словаря
+                self.selected_list.update(
+                    {f"{user}_{value}" if isinstance(value, str) else user
+                     for command_data in receivers.values()
+                     for user, value in command_data.items()}
+                )
+            elif isinstance(receivers, str):
                 self.selected_list.update(receivers.split(','))
 
         # Сборка кнопок
@@ -1149,45 +1155,40 @@ class Main:
 
     async def user_receipts_reminder(self):
         data = await storage.load_data()
-        list_command = [command for command in data["commands"].keys() if data["commands"][command]['users']] + [
-            'Админы']
+        list_command = [cmd for cmd in data["commands"] if data["commands"][cmd]['users']] + ['Админы']
+
         if not list_command or self.current_index >= len(list_command) or self.current_index < 0:
             self.current_index = 0
-        # Преобразуем в список для удобства доступа по индексу
+
         command = list_command[self.current_index]
 
-        users = {f"{username}": value for username, value in
-                 (data["commands"][command]['users'].items() if command != 'Админы' else data["admins"].items())}
+        users = (data["commands"][command]['users'] if command != 'Админы' else data["admins"])
+        users = {username: value for username, value in users.items()}
 
-        if 'Получатели напоминания' not in self.user_data[self.unique_id]:
-            self.user_data[self.unique_id]['Получатели напоминания'] = {}
-        if command not in self.user_data[self.unique_id]['Получатели напоминания']:
-            self.user_data[self.unique_id]['Получатели напоминания'][command] = {}
+        reminder_data = self.user_data[self.unique_id].setdefault('Получатели напоминания', {})
+        command_data = reminder_data.setdefault(command, {})
 
-        # Удаляем пользователей, которых больше нет в списке
         for user, value in users.items():
-            if f'{user}_{value}' not in self.selected_list:
-                if user in self.user_data[self.unique_id]['Получатели напоминания'][command] and value in \
-                        self.user_data[self.unique_id]['Получатели напоминания'][command].values():
-                    del self.user_data[self.unique_id]['Получатели напоминания'][command][user]
+            key = f"{user}_{value}"
+            if key in self.selected_list:
+                command_data[user] = value
             else:
-                self.user_data[self.unique_id]['Получатели напоминания'][command][user] = value
+                command_data.pop(user, None)
 
-        if not self.user_data[self.unique_id]['Получатели напоминания'][command]:
-            del self.user_data[self.unique_id]['Получатели напоминания'][command]
+        if not command_data:
+            reminder_data.pop(command, None)
 
         buttons = {
             f"{'✅' if f'{user}_{value}' in self.selected_list else '❌'} {user} ({str(value).split('_')[0]})": f"toggle_{user}_{value}"
             for user, value in users.items()
         }
 
-        buttons['end'] = {"<": "mainprevedit" if self.current_index > 0 else None,
-                          ">": "mainnextedit" if self.current_index < len(list_command) - 1 else None}
-        # Убираем ключи с значением None
-
-        buttons['end'] = {key: value for key, value in buttons['end'].items() if value is not None}
+        buttons['end'] = {
+            "<": "mainprevedit" if self.current_index > 0 else None,
+            ">": "mainnextedit" if self.current_index < len(list_command) - 1 else None
+        }
+        buttons['end'] = {k: v for k, v in buttons['end'].items() if v is not None}
         buttons['Закрыть'] = {'Отмена!': 'cancellation', '💾 Сохранить!': 'save'}
-        # Отправка сообщения с кнопками
 
         await self.edit_message(buttons=buttons, buttons_row=3)
 
