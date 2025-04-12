@@ -44,7 +44,7 @@ class AuthService:
                     updated = True
 
         if updated:
-            await storage.save_data(data)
+            await storage.write_data(data)
 
 
 access = AuthService()
