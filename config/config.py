@@ -4,7 +4,7 @@ import os
 
 class Config:
     def __init__(self):
-        self.BOT_TOKEN = "7463798230:AAFMIHtAsVf60Z0q7r-ha9CbwJpkDUdLuoo"
+        self.BOT_TOKEN = "8162236522:AAFtiqe-1OTq5Vz-aDhSBPcZx28kesPUVas"
         # Формируем пути относительно корня проекта
         self.IMG_VOLLEY_PATH = self.find_file_in_project("volley.jpg")
         self.IMG_FISH_PATH = self.find_file_in_project("fish.jpg")

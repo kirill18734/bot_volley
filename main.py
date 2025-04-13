@@ -1204,7 +1204,13 @@ async def main():
     # Ждём завершения async_init
     await bot_instance.async_init()
     # Ожидаем завершения опроса бота
-    await bot.infinity_polling()
+    try:
+        await bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    except (ConnectionError, ReadTimeout) as e:
+        sys.stdout.flush()
+        os.execv(sys.argv[0], sys.argv)
+    else:
+        await bot.infinity_polling(timeout=10, long_polling_timeout=5)
     # Опционально: дожидаемся завершения survey_task
     await survey_task
     await survey_task_2
@@ -1214,6 +1220,6 @@ if __name__ == "__main__":
     while True:
         try:
             asyncio.run(main())
-        except Exception as e:
+        except:
             print('Возникла ошибка:', e)
             continue
