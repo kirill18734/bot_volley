@@ -1209,12 +1209,12 @@ async def main():
     await bot_instance.async_init()
     # Ожидаем завершения опроса бота
     try:
-        await bot.infinity_polling(timeout=10, long_polling_timeout=5)
+        await bot.infinity_polling(timeout=10, request_timeout=5)
     except (ConnectionError, ReadTimeout) as e:
         sys.stdout.flush()
         os.execv(sys.argv[0], sys.argv)
     else:
-        await bot.infinity_polling(timeout=10, long_polling_timeout=5)
+        await bot.infinity_polling(timeout=10, request_timeout=5)
     # Опционально: дожидаемся завершения survey_task
     await survey_task
     await survey_task_2
