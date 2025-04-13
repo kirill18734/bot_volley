@@ -11,6 +11,9 @@ from core.storage import storage
 from services.send_reminder import send_reminder
 from services.send_survey import send_survey
 
+import os, sys
+from requests.exceptions import ConnectionError, ReadTimeout
+
 bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
 
@@ -370,7 +373,8 @@ class Main:
 
             if self.call.data == 'cancellation':
                 self.selected_list.clear()
-                if all(key in self.state_stack for key in ['Команды',  'Редактировать напоминание']) or all(key in self.state_stack for key in ['Пользователи',  'Редактировать напоминание']):
+                if all(key in self.state_stack for key in ['Команды', 'Редактировать напоминание']) or all(
+                        key in self.state_stack for key in ['Пользователи', 'Редактировать напоминание']):
                     await self.pop_state(3)
                 await self.back_history(call.message)
             elif 'Начать' in [self.call.data] + list(self.state_stack.keys()):
@@ -1221,5 +1225,5 @@ if __name__ == "__main__":
         try:
             asyncio.run(main())
         except:
-            print('Возникла ошибка:', e)
+            print('Возникла ошибка:')
             continue
