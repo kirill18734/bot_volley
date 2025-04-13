@@ -143,9 +143,10 @@ class Main:
                                                     game_data.items() if k not in (
                                                         'Отметились', 'Количество отметившихся', 'id опроса',
                                                         'Опрос отправлен', 'Напоминание отправлено',
-                                                                           'Опрос открыт', 'Получатели напоминания'))
+                                                        'Опрос открыт', 'Получатели напоминания'))
 
-            if any(state in self.state_stack for state in ['Пользователи', 'Команды']) and 'Новое напоминание' in self.state_stack:
+            if any(state in self.state_stack for state in
+                   ['Пользователи', 'Команды']) and 'Новое напоминание' in self.state_stack:
                 new_data = deepcopy(self.user_data[self.unique_id]['Получатели напоминания'])
                 # Обновляем значения в словаре
                 if type(new_data) != str:
@@ -369,6 +370,8 @@ class Main:
 
             if self.call.data == 'cancellation':
                 self.selected_list.clear()
+                if all(key in self.state_stack for key in ['Команды',  'Редактировать напоминание']) or all(key in self.state_stack for key in ['Пользователи',  'Редактировать напоминание']):
+                    await self.pop_state(3)
                 await self.back_history(call.message)
             elif 'Начать' in [self.call.data] + list(self.state_stack.keys()):
                 if 'Начать' not in list(self.state_stack.keys()):
@@ -991,20 +994,19 @@ class Main:
     async def selectsendsurvey(self):
         data = await storage.load_data()
         users = list(data["commands"].keys()) + ["Админы"]
-
+        # Название кнопки в зависимости от состояния
+        is_survey = any(state in self.state_stack for state in ["Новый опрос", "Редактировать опрос"])
+        button_name = "Получатели опроса" if is_survey else "Получатели напоминания"
+        if button_name not in self.user_data[self.unique_id]:
+            self.user_data[self.unique_id][button_name] = ''
+        if type(self.user_data[self.unique_id][button_name]) != str:
+            self.selected_list.clear()
+            self.user_data[self.unique_id][button_name] = ''
         # Формируем кнопки для выбора получателей
         toggle_buttons = {
             f"{'✅' if key in self.selected_list else '❌'} {key}": f"toggle_{key}"
             for key in users
         }
-
-        # Название кнопки в зависимости от состояния
-        is_survey = any(state in self.state_stack for state in ["Новый опрос", "Редактировать опрос"])
-        button_name = "Получатели опроса" if is_survey else "Получатели напоминания"
-
-        # Гарантируем, что self.user_data[self.unique_id] — словарь
-        if not isinstance(self.user_data.get(self.unique_id), dict):
-            self.user_data[self.unique_id] = {}
 
         self.user_data[self.unique_id][button_name] = ','.join(self.selected_list) if self.selected_list else ''
 
@@ -1094,7 +1096,6 @@ class Main:
         if any(key in self.state_stack for key in ['Редактировать опрос', 'Команды', 'Редактировать напоминание']):
             key_name = 'Получатели опроса' if 'Редактировать опрос' in self.state_stack else 'Получатели напоминания'
             receivers = self.user_data[self.unique_id].get(key_name)
-            print(receivers)
             if isinstance(receivers, dict):
                 # Рекурсивно собрать всех "имен" из вложенного словаря
                 self.selected_list.update(
@@ -1164,7 +1165,8 @@ class Main:
 
         users = (data["commands"][command]['users'] if command != 'Админы' else data["admins"])
         users = {username: value for username, value in users.items()}
-
+        if type(self.user_data[self.unique_id]['Получатели напоминания']) == str:
+            self.user_data[self.unique_id]['Получатели напоминания'] = {}
         reminder_data = self.user_data[self.unique_id].setdefault('Получатели напоминания', {})
         command_data = reminder_data.setdefault(command, {})
 
