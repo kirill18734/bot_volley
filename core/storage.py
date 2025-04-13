@@ -1,7 +1,7 @@
 # core/storage.py
 import json
 import asyncio
-from config.config import config
+from config import config
 
 
 class Storage:

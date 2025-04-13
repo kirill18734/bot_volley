@@ -1,7 +1,7 @@
 from datetime import datetime
 from telebot.async_telebot import AsyncTeleBot
 
-from config.config import config
+from config import config
 from core.storage import storage
 
 bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')

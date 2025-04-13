@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from telebot.async_telebot import AsyncTeleBot
 from core.storage import storage
 
-from config.config import config
+from config import config
 
 bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
