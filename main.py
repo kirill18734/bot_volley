@@ -1,4 +1,6 @@
 from copy import deepcopy
+from time import sleep
+
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import calendar
@@ -10,9 +12,6 @@ from core.AuthService import access
 from core.storage import storage
 from services.send_reminder import send_reminder
 from services.send_survey import send_survey
-
-import os, sys
-from requests.exceptions import ConnectionError, ReadTimeout
 
 bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
@@ -1002,7 +1001,7 @@ class Main:
         is_survey = any(state in self.state_stack for state in ["Новый опрос", "Редактировать опрос"])
         button_name = "Получатели опроса" if is_survey else "Получатели напоминания"
         if button_name not in self.user_data[self.unique_id]:
-            self.user_data[self.unique_id][button_name] = ''
+            self.user_data[self.unique_id][button_name]
         if type(self.user_data[self.unique_id][button_name]) != str:
             self.selected_list.clear()
             self.user_data[self.unique_id][button_name] = ''
@@ -1208,13 +1207,7 @@ async def main():
     # Ждём завершения async_init
     await bot_instance.async_init()
     # Ожидаем завершения опроса бота
-    try:
-        await bot.infinity_polling(timeout=10, request_timeout=5)
-    except (ConnectionError, ReadTimeout) as e:
-        sys.stdout.flush()
-        os.execv(sys.argv[0], sys.argv)
-    else:
-        await bot.infinity_polling(timeout=10, request_timeout=5)
+    await bot.infinity_polling()
     # Опционально: дожидаемся завершения survey_task
     await survey_task
     await survey_task_2
@@ -1226,4 +1219,5 @@ if __name__ == "__main__":
             asyncio.run(main())
         except:
             print('Возникла ошибка:')
+            sleep(10)
             continue
