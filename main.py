@@ -7,7 +7,7 @@ import calendar
 import uuid
 from datetime import datetime
 import asyncio
-from config.config import config
+from config import config
 from core.AuthService import access
 from core.storage import storage
 from services.send_reminder import send_reminder

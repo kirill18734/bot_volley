@@ -30,7 +30,7 @@ async def send_survey():
                             "%d-%m-%Y %H:%M"
                         ) - timedelta(minutes=30)
 
-                        day_index = days_week[target_date2.weekday()]
+                        day_index = config.WEEK_DAYS[target_date2.weekday()]
 
                         current_date = datetime.now().replace(second=0, microsecond=0)
                         poll_message = None
