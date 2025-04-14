@@ -1,6 +1,7 @@
 from copy import deepcopy
 from time import sleep
 
+from telebot import apihelper
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import calendar
@@ -1200,6 +1201,7 @@ async def main():
     survey_task = asyncio.create_task(send_survey())
     survey_task_2 = asyncio.create_task(send_reminder())
     # Ждём завершения async_init
+    apihelper.SESSION_TIME_TO_LIVE = 5 * 60
     await bot_instance.async_init()
     # Ожидаем завершения опроса бота
     await bot.infinity_polling()
@@ -1212,7 +1214,7 @@ if __name__ == "__main__":
     while True:
         try:
             asyncio.run(main())
-        except:
-            print('Возникла ошибка:')
+        except Exception as e:
+            print('Возникла ошибка:', e)
             sleep(10)
             continue
