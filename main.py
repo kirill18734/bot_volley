@@ -73,7 +73,7 @@ class Main:
                 if "Команда" in self.state_stack:
                     original_keys["Команда"] = self.process_buttons
                 if "Пользователи" in self.state_stack:
-                    original_keys["Команда"] = self.process_buttons
+                    original_keys["Пользователи"] = self.process_buttons
 
             # Получаем список ключей из original_keys
             keys = list(original_keys.keys())
@@ -103,7 +103,7 @@ class Main:
         response_text = ' - '.join(list(self.state_stack.keys())[:-1]) + ' - <u>' + list(self.state_stack.keys())[
             -1] + '</u>' if self.state_stack else ''
 
-        response_text = f"Вы находитесь в разделе: {response_text.replace('- <u>Главное меню</u>', '<u>Главное меню</u>').replace('admins', 'Админы').replace('Изменить получателей нап', 'Изменить получателей напоминания')}"
+        response_text = f"Вы находитесь в разделе: {response_text.replace('- <u>Главное меню</u>', '<u>Главное меню</u>').replace('Изменить получателей нап', 'Изменить получателей напоминания')}"
         if len(self.state_stack) > 3:
             if any(state in list(self.state_stack.keys())[-2] for state in ['Открыть доступ']):
                 response_text += f"\n\nНапишите Ник и id пользователя для добавления через двоеточие, пример:\n Вася:2938214371 или Петя:@petya (можно без @). \nТакже можно добавлять списком нескольких пользователей через запятую, пример:\nВася:2938214371, Петя:@petya, Lena:lenusik"
@@ -217,7 +217,7 @@ class Main:
                         del self.user_data[self.unique_id][key]
 
                 try:
-                    if 'Время тренировки/игры' in self.state_stack or 'Время отправки' in self.state_stack:
+                    if any(key in self.state_stack for key in ['Время тренировки/игры', 'Время отправки напоминания']):
                         self.user_states[message.chat.id] = "add"
                     # Попытка вызвать функцию
                     await last_function()
@@ -245,10 +245,9 @@ class Main:
                 for key, value in data['surveys'].items():
                     if value["id опроса"] == str(poll_id):
                         for command in str(value['Получатели опроса']).split(','):
-
                             for user, id_ in (
                                     data['commands'][command]['users'].items() if command != 'Админы' else data[
-                                        'admins'].items()):
+                                        'Админы'].items()):
                                 # Ваш код здесь
 
                                 if str(user_id) == id_.split('_')[-1]:
@@ -298,6 +297,7 @@ class Main:
                 self.keys.pop()
                 await self.navigate()
                 return
+            self.selected_list.clear()
             await self.back_history(message)
 
         @bot.message_handler(
@@ -324,7 +324,7 @@ class Main:
 
             data = await storage.load_data()
             # Добавляем команды из data["commands"] и "Админы", все указывают на self.open
-            extra_actions = {name: self.distribution_center for name in list(data["commands"].keys()) + ['admins']}
+            extra_actions = {name: self.distribution_center for name in list(data["commands"].keys()) + ['Админы']}
             if call.data in extra_actions:
                 self.select_command = call.data
             actions = {
@@ -511,7 +511,7 @@ class Main:
                     """Отображает текущий опрос с кнопками навигации"""
                     surveys_items = [command for command in data["commands"].keys() if
                                      data["commands"][command]['users']] + [
-                                        'admins']
+                                        'Админы']
                     direction = {"mainnextedit": 1, "mainprevedit": -1}[self.call.data]
                     new_index = self.current_index + direction
                     if 0 <= new_index < len(surveys_items):
@@ -537,7 +537,7 @@ class Main:
         buttons_name = [key for key in data["commands"].keys()]
         buttons = {name: name for name in buttons_name}
         if any(key in self.state_stack for key in ['Открыть доступ', 'Закрыть доступ']):
-            buttons['Админы'] = 'admins'
+            buttons['Админы'] = 'Админы'
         await self.edit_message(buttons=buttons)
 
     async def edit_command(self):
@@ -743,7 +743,7 @@ class Main:
                 section = priorities[mode]
 
                 for name, value in parsed:
-                    if self.select_command != 'admins':
+                    if self.select_command != 'Админы':
                         if name not in data["commands"][self.select_command][section] and value not in \
                                 data["commands"][self.select_command][section].values():
                             data["commands"][self.select_command][section][name] = value
@@ -789,8 +789,8 @@ class Main:
         text = next((value for key, value in keys_mapping.items() if key in self.state_stack), 'Закрыть доступ')
 
         if text == 'Закрыть доступ':
-            if self.select_command == 'admins':
-                get_data = data['admins'].items()
+            if self.select_command == 'Админы':
+                get_data = data['Админы'].items()
             else:
                 get_data = data["commands"][self.select_command]["users"].items()
 
@@ -842,8 +842,8 @@ class Main:
 
                 if 'Закрыть доступ' in self.state_stack:
                     # Проверка: нельзя удалить всех админов
-                    if self.select_command == 'admins':
-                        if len(data['admins']) <= len(self.selected_list):
+                    if self.select_command == 'Админы':
+                        if len(data['Админы']) <= len(self.selected_list):
                             text = 'пользователи НЕ УДАЛЕНЫ' if len(
                                 self.selected_list) > 1 else 'пользователь НЕ УДАЛЕН'
                             await bot.answer_callback_query(self.call.id,
@@ -853,8 +853,8 @@ class Main:
                             return
 
                         # Удаление админов
-                        data['admins'] = {
-                            k: v for k, v in data['admins'].items()
+                        data['Админы'] = {
+                            k: v for k, v in data['Админы'].items()
                             if str(v).split('_')[0] not in self.selected_list
                         }
 
@@ -996,30 +996,23 @@ class Main:
 
     async def selectsendsurvey(self):
         data = await storage.load_data()
-        users = list(data["commands"].keys()) + ["Админы"]
+        users = [command for command in data["commands"].keys()] + ["Админы"]
         # Название кнопки в зависимости от состояния
         is_survey = any(state in self.state_stack for state in ["Новый опрос", "Редактировать опрос"])
         button_name = "Получатели опроса" if is_survey else "Получатели напоминания"
         if button_name not in self.user_data[self.unique_id]:
-            self.user_data[self.unique_id][button_name]
-        if type(self.user_data[self.unique_id][button_name]) != str:
-            self.selected_list.clear()
-            self.user_data[self.unique_id][button_name] = ''
+            self.user_data[self.unique_id][button_name] = ""
         # Формируем кнопки для выбора получателей
         toggle_buttons = {
             f"{'✅' if key in self.selected_list else '❌'} {key}": f"toggle_{key}"
             for key in users
         }
-
         self.user_data[self.unique_id][button_name] = ','.join(self.selected_list) if self.selected_list else ''
-
         # Кнопки завершения
         final_label = "Запланировать" if is_survey or "Новое напоминание" in self.state_stack else "Изменить"
         action_buttons = {"Отмена": "cancellation", final_label: "save"}
-
         # Объединяем кнопки
         buttons = {**toggle_buttons, 'end': action_buttons}
-
         # Показываем меню
         await self.edit_message(buttons=buttons)
 
@@ -1166,8 +1159,10 @@ class Main:
 
         command = list_command[self.current_index]
 
-        users = (data["commands"][command]['users'] if command != 'Админы' else data["admins"])
+        users = (data["commands"][command]['users'] if command != 'Админы' else data["Админы"])
         users = {username: value for username, value in users.items()}
+        if 'Получатели напоминания' not in self.user_data[self.unique_id]:
+            self.user_data[self.unique_id]['Получатели напоминания'] = {}
         if type(self.user_data[self.unique_id]['Получатели напоминания']) == str:
             self.user_data[self.unique_id]['Получатели напоминания'] = {}
         reminder_data = self.user_data[self.unique_id].setdefault('Получатели напоминания', {})

@@ -1,14 +1,12 @@
 from core.storage import storage
 import re
-from typing import List, Tuple, Union
-
 
 class AuthService:
     async def check_access(self, message):
         """Проверяет права доступа пользователя"""
         data = await storage.load_data()
 
-        admins = [str(v).replace('@', '').split('_')[0] for v in data["admins"].values()]
+        admins = [str(v).replace('@', '').split('_')[0] for v in data["Админы"].values()]
         users = [str(name).replace('@', '').split('_')[0]
                  for command in data["commands"].values()
                  for name in command["users"].values()]
@@ -33,9 +31,9 @@ class AuthService:
         username = str(username).replace('@', '')
 
         # Для админов
-        for key, value in data["admins"].items():
+        for key, value in data["Админы"].items():
             if value.replace("@", '') in (username, str(user_id)) and len(value.split('_')) == 1:
-                data["admins"][key] = f"{value}_{user_id}"
+                data["Админы"][key] = f"{value}_{user_id}"
                 updated = True
 
         # Для обычных пользователей

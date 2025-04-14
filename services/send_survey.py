@@ -13,13 +13,13 @@ async def send_survey():
             data = await storage.load_data()
             for survey_id, survey_data in data['surveys'].items():
                 if survey_data.get('Получатели опроса'):
-                    commands = str(survey_data.get('Получатели опроса')).replace("Админы", "admins").split(',')
-                    users = [
-                        str(user).replace("@", '').split('_')[-1]
+                    commands = str(survey_data.get('Получатели опроса')).split(',')
+                    users = set([
+                        str(user).split('_')[-1]
                         for cmd in commands
-                        for user in (data['admins'].values() if cmd == 'admins' else data['commands'][cmd][
+                        for user in (data['Админы'].values() if cmd == 'Админы' else data['commands'][cmd][
                             "users"].values())
-                    ]
+                    ])
                     if users:
                         target_date = datetime.strptime(
                             f"{survey_data.get('Дата отправки опроса')} {survey_data.get('Время отправки опроса')}",
@@ -36,17 +36,17 @@ async def send_survey():
                         poll_message = None
                         #         # отправка опроса
                         if target_date == current_date and target_date2 >= current_date and survey_data.get(
-                                'Опрос отправлен') == 'Нет' and survey_data.get('Получатели опроса'):
+                                'Опрос отправлен') == 'Нет':
 
                             question = f"{survey_data.get('Тип')} {survey_data.get('Дата тренировки/игры')} ({day_index}) c {survey_data.get('Время тренировки/игры').replace(' - ', ' до ')} стоймость {survey_data.get('Цена')}р .\nАдрес: {survey_data.get('Адрес')}"
 
-                            # #     # Получение дня недели
+                            # Получение дня недели
                             options = ["Буду", "+1"]
                             for user in users:
                                 try:
-                                    user_chat = user.split("_")[-1]
+
                                     poll_message = await bot.send_poll(
-                                        chat_id=user_chat,
+                                        chat_id=user,
                                         question=question,
                                         options=options,
                                         close_date=target_date2,
