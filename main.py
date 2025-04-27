@@ -1,18 +1,16 @@
 from copy import deepcopy
-from time import sleep
-
-from telebot import apihelper
 from telebot.async_telebot import AsyncTeleBot
-from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
-import calendar
 import uuid
 from datetime import datetime
-import asyncio
-from config import config
 from core.AuthService import access
 from core.storage import storage
-from services.send_reminder import send_reminder
-from services.send_survey import send_survey
+from service import run_service
+from telebot import apihelper
+from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+from config import config
+from requests.exceptions import ConnectionError, ReadTimeout
+import calendar
+import asyncio
 
 bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
@@ -36,10 +34,7 @@ class Main:
         try:
             response_text = 'У вас нет доступа к данному боту'
             await bot.send_message(message.chat.id, response_text)
-            try:
-                await bot.delete_message(message.chat.id, message.message_id)
-            except:
-                pass
+            await self.delete_message(message)
         except:
             pass
 
@@ -1194,27 +1189,31 @@ class Main:
         await self.edit_message(buttons=buttons, buttons_row=3)
 
 
-async def main():
-    bot_instance = Main()
-
-    # Запускаем async_survey в отдельной задаче
-    survey_task = asyncio.create_task(send_survey())
-    survey_task_2 = asyncio.create_task(send_reminder())
-    # Ждём завершения async_init
+# --- Асинхронная функция для запуска бота ---
+async def bot_run():
     apihelper.SESSION_TIME_TO_LIVE = 5 * 60
-    await bot_instance.async_init()
-    # Ожидаем завершения опроса бота
-    await bot.infinity_polling()
-    # Опционально: дожидаемся завершения survey_task
-    await survey_task
-    await survey_task_2
+    await bot.infinity_polling(timeout=10, skip_pending=True)
 
 
-if __name__ == "__main__":
+# --- Обертка для запуска бота с перезапуском при ошибках ---
+async def run_bot():
     while True:
         try:
-            asyncio.run(main())
-        except Exception as e:
-            print('Возникла ошибка:', e)
-            sleep(10)
-            continue
+            app = Main()
+            await app.async_init()
+            await bot_run()
+        except (ConnectionError, ReadTimeout) as e:
+            print(f"Ошибка подключения: {e}, повтор через 10 сек...")
+            await asyncio.sleep(10)
+
+
+# --- Главная функция ---
+async def main():
+    task1 = asyncio.create_task(run_bot())
+    task2 = asyncio.create_task(run_service())
+    await asyncio.gather(task1, task2)
+
+
+# --- Запуск ---
+if __name__ == "__main__":
+    asyncio.run(main())

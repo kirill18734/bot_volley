@@ -3,11 +3,11 @@ import os
 
 class Config:
     def __init__(self):
-        self.BOT_TOKEN = "7892113140:AAHUz5IESaivcIFO8DiyKmc_i_jtoczpxaY"
+        self.BOT_TOKEN = "7510679217:AAF9P7a-_1u6FTkDNBz3KSFC4-XFn82SErE"
         # Формируем пути относительно корня проекта
         self.IMG_VOLLEY_PATH = self.find_file_in_project("volley.jpg")
         self.IMG_FISH_PATH = self.find_file_in_project("fish.jpg")
-        self.FILE_DATA = self.find_file_in_project("data.json")
+        self.FILE_DATA = "../data/data.json" if "AMVERA" in os.environ else "data.json"
         self.MONTH_NAMES = {
             1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
             5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
