@@ -25,7 +25,9 @@ def get_users(command_list, data):
             for user in command_list[command].values()
         )
 
+
 from datetime import datetime
+
 
 def send_reminder():
     try:
@@ -78,9 +80,9 @@ def send_survey():
                     if target_date == current_date and target_date2 >= current_date and survey_data.get(
                             'Опрос отправлен') == 'Нет':
                         question = f"{survey_data.get('Тип')} {survey_data.get('Дата тренировки/игры')} ({day_index}) c {survey_data.get('Время тренировки/игры').replace(' - ', ' до ')} стоймость {survey_data.get('Цена')}р .\nАдрес: {survey_data.get('Адрес')}"
-
-                        poll_message = io.gather(
-                            *(bot.send_poll(
+                        poll_message = None
+                        for user in users:
+                            poll_message = bot.send_poll(
                                 chat_id=user,
                                 question=question,
                                 options=["Буду", "+1"],
@@ -88,8 +90,7 @@ def send_survey():
                                 is_anonymous=False,
                                 allows_multiple_answers=False,
                                 explanation_parse_mode='HTML'
-                            ) for user in users)
-                        )
+                            )
 
                         survey_data['Опрос отправлен'] = "Да"
                         survey_data["Опрос открыт"] = "Да"

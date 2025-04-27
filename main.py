@@ -1203,6 +1203,7 @@ def run_bot():
 
 # --- Поток 2: запуск планировщика ---
 def run_scheduler():
+    schedule.every(1).minutes.do(run_service)
     while True:
         schedule.run_pending()
         sleep(1)
@@ -1211,9 +1212,8 @@ def run_scheduler():
 if __name__ == "__main__":
     # Запуск бота в отдельном потоке
     threading.Thread(target=run_bot, daemon=True).start()
-
     # Настройка расписания для сервиса
-    schedule.every(1).minutes.do(run_service)
-
     # Запуск планировщика в отдельном потоке
     threading.Thread(target=run_scheduler, daemon=True).start()
+    while True:
+        pass
