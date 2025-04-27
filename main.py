@@ -12,6 +12,7 @@ from config import config
 from requests.exceptions import ConnectionError, ReadTimeout
 import calendar
 import schedule
+
 bot = TeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
 
@@ -1187,6 +1188,11 @@ class Main:
         self.edit_message(buttons=buttons, buttons_row=3)
 
 
+import threading
+import schedule
+from time import sleep
+
+
 # --- Поток 1: запуск бота ---
 def run_bot():
     while True:
@@ -1200,6 +1206,13 @@ def run_bot():
             continue
 
 
+# --- Поток 2: запуск планировщика ---
+def run_scheduler():
+    while True:
+        schedule.run_pending()
+        sleep(1)
+
+
 if __name__ == "__main__":
     # Запуск бота в отдельном потоке
     threading.Thread(target=run_bot, daemon=True).start()
@@ -1207,7 +1220,9 @@ if __name__ == "__main__":
     # Настройка расписания для сервиса
     schedule.every(1).minutes.do(run_service)
 
-    # Запуск планировщика в основном потоке
+    # Запуск планировщика в отдельном потоке
+    threading.Thread(target=run_scheduler, daemon=True).start()
+
+    # Бесконечный цикл, чтобы основной поток не завершался
     while True:
-        schedule.run_pending()
         sleep(1)
