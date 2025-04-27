@@ -1,19 +1,21 @@
 import asyncio
+import io
 from datetime import datetime, timedelta
-from telebot.async_telebot import AsyncTeleBot
+from telebot import TeleBot
 from config import config
 from core.storage import storage
 
-bot = AsyncTeleBot(config.BOT_TOKEN, parse_mode='HTML')
+bot = TeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
 
-async def get_users(command_list, data):
+def get_users(command_list, data):
     if isinstance(command_list, str):
         return set(
             str(user).split('_')[-1]
             for command in command_list.split(',')
             for user in (
-                    data['commands'].get(command, {}).get('users', {}).values() if command != 'Админы' else data['Админы'].values()
+                data['commands'].get(command, {}).get('users', {}).values() if command != 'Админы' else data[
+                    'Админы'].values()
             )
         )
     else:
@@ -23,10 +25,11 @@ async def get_users(command_list, data):
             for user in command_list[command].values()
         )
 
+from datetime import datetime
 
-async def send_reminder():
+def send_reminder():
     try:
-        data = await storage.load_data()
+        data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0)
 
         for survey_id, survey_data in data['reminder'].items():
@@ -37,26 +40,27 @@ async def send_reminder():
 
             if survey_data.get('Текст напоминания') and target_date == current_date and survey_data.get(
                     'Напоминание отправлено') == 'Нет':
-                users = await get_users(survey_data.get('Получатели напоминания'), data)
+                users = get_users(survey_data.get('Получатели напоминания'), data)
 
-                await asyncio.gather(
-                    *(bot.send_message(user, survey_data.get('Текст напоминания')) for user in users)
-                )
+                # Отправляем сообщения синхронно
+                for user in users:
+                    bot.send_message(user, survey_data.get('Текст напоминания'))
 
-                survey_data['Напоминание отправлено'] = "Да"
-                await storage.write_data(data)
+            survey_data['Напоминание отправлено'] = "Да"
+            storage.write_data(data)
+
     except Exception as e:
         print(f"Ошибка в send_reminder: {e}")
 
 
-async def send_survey():
+def send_survey():
     try:
-        data = await storage.load_data()
+        data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0)
 
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
-                users = await get_users(survey_data.get('Получатели опроса'), data)
+                users = get_users(survey_data.get('Получатели опроса'), data)
 
                 if users:
                     target_date = datetime.strptime(
@@ -75,7 +79,7 @@ async def send_survey():
                             'Опрос отправлен') == 'Нет':
                         question = f"{survey_data.get('Тип')} {survey_data.get('Дата тренировки/игры')} ({day_index}) c {survey_data.get('Время тренировки/игры').replace(' - ', ' до ')} стоймость {survey_data.get('Цена')}р .\nАдрес: {survey_data.get('Адрес')}"
 
-                        poll_message = await asyncio.gather(
+                        poll_message = io.gather(
                             *(bot.send_poll(
                                 chat_id=user,
                                 question=question,
@@ -91,18 +95,17 @@ async def send_survey():
                         survey_data["Опрос открыт"] = "Да"
                         survey_data['id опроса'] = poll_message[0].poll.id
 
-                        await storage.write_data(data)
+                        storage.write_data(data)
                     elif target_date2 <= current_date and 'Да' in (
                             survey_data.get('Опрос открыт'), survey_data.get('Опрос отправлен')):
                         survey_data["Опрос открыт"] = "Нет"
-                        await storage.write_data(data)
+                        storage.write_data(data)
 
     except Exception as e:
         print(f"Ошибка в send_survey: {e}")
 
 
-async def run_service():
-    while True:
-        await send_reminder()
-        await send_survey()
-        await asyncio.sleep(60)  # Ждем 1 минуту перед следующим запуском
+def run_service():
+    print('запустилось')
+    send_reminder()
+    send_survey()

@@ -1,10 +1,11 @@
 from core.storage import storage
 import re
 
+
 class AuthService:
-    async def check_access(self, message):
+    def check_access(self, message):
         """Проверяет права доступа пользователя"""
-        data = await storage.load_data()
+        data = storage.load_data()
 
         admins = [str(v).replace('@', '').split('_')[0] for v in data["Админы"].values()]
         users = [str(name).replace('@', '').split('_')[0]
@@ -21,11 +22,11 @@ class AuthService:
 
         # Обновляем данные пользователей при необходимости
         if access_info['is_admin'] or access_info['is_user']:
-            await self._update_user_ids(data, user_id, username)
+            self._update_user_ids(data, user_id, username)
 
         return access_info
 
-    async def _update_user_ids(self, data, user_id: int, username: str):
+    def _update_user_ids(self, data, user_id: int, username: str):
         """Обновляет ID пользователей в хранилище"""
         updated = False
         username = str(username).replace('@', '')
@@ -44,9 +45,9 @@ class AuthService:
                     updated = True
 
         if updated:
-            await storage.write_data(data)
+            storage.write_data(data)
 
-    async def parse_kv_input(self, text: str, mode: str):
+    def parse_kv_input(self, text: str, mode: str):
         items = [item.strip() for item in text.replace('\n', ',').split(',') if item.strip()]
         result = []
         errors = []
