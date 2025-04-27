@@ -1,8 +1,6 @@
-import threading
 from copy import deepcopy
 import uuid
 from datetime import datetime
-from time import sleep
 from core.AuthService import access
 from core.storage import storage
 from service import run_service
@@ -11,7 +9,9 @@ from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from config import config
 from requests.exceptions import ConnectionError, ReadTimeout
 import calendar
+import threading
 import schedule
+from time import sleep
 
 bot = TeleBot(config.BOT_TOKEN, parse_mode='HTML')
 
@@ -1188,11 +1188,6 @@ class Main:
         self.edit_message(buttons=buttons, buttons_row=3)
 
 
-import threading
-import schedule
-from time import sleep
-
-
 # --- Поток 1: запуск бота ---
 def run_bot():
     while True:
@@ -1222,7 +1217,3 @@ if __name__ == "__main__":
 
     # Запуск планировщика в отдельном потоке
     threading.Thread(target=run_scheduler, daemon=True).start()
-
-    # Бесконечный цикл, чтобы основной поток не завершался
-    while True:
-        sleep(1)
