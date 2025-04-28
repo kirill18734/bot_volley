@@ -55,8 +55,8 @@ def send_reminder():
     except Exception as e:
         print(f"Ошибка в send_reminder: {e}")
 
-def send_survey():
 
+def send_survey():
     try:
         data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
