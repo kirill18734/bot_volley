@@ -1,5 +1,3 @@
-import asyncio
-import io
 from datetime import datetime, timedelta
 from telebot import TeleBot
 from config import config

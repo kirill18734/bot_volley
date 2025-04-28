@@ -1,4 +1,3 @@
-# core/storage.py
 import json
 from config import config
 
@@ -14,5 +13,6 @@ class Storage:
     def write_data(self, data):
         with open(self.config_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
+
 
 storage = Storage()
