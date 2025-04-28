@@ -96,7 +96,6 @@ def send_survey():
                         survey_data['Опрос отправлен'] = "Да"
                         survey_data["Опрос открыт"] = "Да"
                         survey_data['id опроса'] = poll_message[0].poll.id
-
                         storage.write_data(data)
 
                     elif target_date > current_date and target_date2 > current_date and 'Да' in (
