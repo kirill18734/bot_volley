@@ -28,7 +28,6 @@ def send_reminder():
     try:
         data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
-        print(current_date)
         for survey_id, survey_data in data['reminder'].items():
             target_date = datetime.strptime(
                 f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
@@ -56,7 +55,7 @@ def send_survey():
     try:
         data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
-
+        print(current_date)
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
                 users = get_users(survey_data.get('Получатели опроса'), data)
@@ -66,7 +65,7 @@ def send_survey():
                         f"{survey_data.get('Дата отправки опроса')} {survey_data.get('Время отправки опроса')}",
                         "%d-%m-%Y %H:%M"
                     )
-
+                    print(target_date)
                     target_date2 = datetime.strptime(
                         f"{survey_data.get('Дата тренировки/игры')} {survey_data.get('Время тренировки/игры').split(' - ')[0]}",
                         "%d-%m-%Y %H:%M"
@@ -106,6 +105,5 @@ def send_survey():
 
 
 def run_service():
-    print('запустилось')
     send_reminder()
     send_survey()
