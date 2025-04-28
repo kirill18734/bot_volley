@@ -238,7 +238,7 @@ class Main:
             data = storage.load_data()
             if data['surveys']:  # Проверяем, есть ли ключ 'surveys'
                 for key, value in data['surveys'].items():
-                    if value["id опроса"] == str(poll_id):
+                    if str(poll_id) in value["id опроса"].values():
                         for command in str(value['Получатели опроса']).split(','):
                             for user, id_ in (
                                     data['commands'][command]['users'].items() if command != 'Админы' else data[
@@ -1193,7 +1193,7 @@ def run_bot():
     while True:
         try:
             Main()
-            bot.infinity_polling(timeout=10, skip_pending=True)
+            bot.infinity_polling(timeout=10)
             apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         except (ConnectionError, ReadTimeout) as e:
             print(f"Ошибка подключения: {e}, повтор через 10 сек...")

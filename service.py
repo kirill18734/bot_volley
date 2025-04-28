@@ -27,7 +27,7 @@ def get_users(command_list, data):
 def send_reminder():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
+        current_date = datetime.now().replace(second=0, microsecond=0) #+ timedelta(hours=3)
         for survey_id, survey_data in data['reminder'].items():
             target_date = datetime.strptime(
                 f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
@@ -59,7 +59,7 @@ def send_reminder():
 def send_survey():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
+        current_date = datetime.now().replace(second=0, microsecond=0) #+ timedelta(hours=3)
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
                 users = get_users(survey_data.get('Получатели опроса'), data)
@@ -75,11 +75,9 @@ def send_survey():
                     ) - timedelta(minutes=30)
 
                     day_index = config.WEEK_DAYS[target_date2.weekday()]
-
                     if target_date == current_date and target_date2 >= current_date and survey_data.get(
                             'Опрос отправлен') == 'Нет':
                         question = f"{survey_data.get('Тип')} {survey_data.get('Дата тренировки/игры')} ({day_index}) c {survey_data.get('Время тренировки/игры').replace(' - ', ' до ')} стоймость {survey_data.get('Цена')}р .\nАдрес: {survey_data.get('Адрес')}"
-                        poll_message = None
                         for user in users:
                             try:
                                 poll_message = bot.send_poll(
@@ -91,11 +89,14 @@ def send_survey():
                                     allows_multiple_answers=False,
                                     explanation_parse_mode='HTML'
                                 )
-                            except:
+                                if user not in survey_data['id опроса']:
+                                    survey_data['id опроса'][user] = poll_message.poll.id
+
+                            except Exception as e:
+                                print(f"Ошибка при отправке опроса пользователю {user}: {e}")
                                 continue
                         survey_data['Опрос отправлен'] = "Да"
                         survey_data["Опрос открыт"] = "Да"
-                        survey_data['id опроса'] = poll_message[0].poll.id
                         storage.write_data(data)
 
                     elif target_date > current_date and target_date2 > current_date and 'Да' in (
