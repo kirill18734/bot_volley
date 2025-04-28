@@ -47,7 +47,7 @@ def send_reminder():
                 survey_data['Напоминание отправлено'] = "Да"
                 storage.write_data(data)
 
-            elif target_date >= current_date and survey_data.get(
+            elif target_date > current_date and survey_data.get(
                     'Напоминание отправлено') == 'Да':
                 survey_data['Напоминание отправлено'] = "Нет"
                 storage.write_data(data)
@@ -99,7 +99,7 @@ def send_survey():
 
                         storage.write_data(data)
 
-                    elif target_date >= current_date and target_date2 >= current_date and 'Да' in (
+                    elif target_date > current_date and target_date2 > current_date and 'Да' in (
                             survey_data.get('Опрос открыт'), survey_data.get('Опрос отправлен')):
                         survey_data['Опрос отправлен'] = "Нет"
                         survey_data["Опрос открыт"] = "Нет"
