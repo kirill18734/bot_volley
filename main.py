@@ -1211,9 +1211,7 @@ def run_scheduler():
 
 if __name__ == "__main__":
     # Запуск бота в отдельном потоке
-    threading.Thread(target=run_bot, daemon=True).start()
+    threading.Thread(target=run_bot).start()
     # Настройка расписания для сервиса
     # Запуск планировщика в отдельном потоке
-    threading.Thread(target=run_scheduler, daemon=True).start()
-    while True:
-        pass
+    threading.Thread(target=run_scheduler).start()
