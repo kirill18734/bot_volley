@@ -232,36 +232,35 @@ class Main:
         @bot.poll_answer_handler(func=lambda answer: True)
         def handle_poll_answer(answer):
             user_id = answer.user.id
-            poll_id = answer.poll_id
+            poll_id = int(answer.poll_id)
             option_ids = 0 if not answer.option_ids else '+1' if answer.option_ids[0] == 1 else 'Буду'
-
             data = storage.load_data()
             if data['surveys']:  # Проверяем, есть ли ключ 'surveys'
                 for key, value in data['surveys'].items():
-                    if str(poll_id) in value["id опроса"].values():
-                        for command in str(value['Получатели опроса']).split(','):
-                            for user, id_ in (
-                                    data['commands'][command]['users'].items() if command != 'Админы' else data[
-                                        'Админы'].items()):
-                                # Ваш код здесь
+                    for userid, data_surveys in value["id опроса"].items():
+                        if poll_id in data_surveys:
+                            for command in str(value['Получатели опроса']).split(','):
+                                for user, id_ in (
+                                        data['commands'][command]['users'].items() if command != 'Админы' else data[
+                                            'Админы'].items()):
 
-                                if str(user_id) == id_.split('_')[-1]:
-                                    if command not in value["Отметились"]:
-                                        value["Отметились"][command] = {}
+                                    if str(user_id) == id_.split('_')[-1]:
+                                        if command not in value["Отметились"]:
+                                            value["Отметились"][command] = {}
 
-                                    if option_ids != 0:
-                                        value["Отметились"][command][f'{user}({user_id})'] = option_ids
-                                    else:
-                                        # Если голос не был поставлен, удаляем пользователя из "Отметились"
-                                        if f'{user}({user_id})' in value["Отметились"][command]:
-                                            del value["Отметились"][command][f'{user}({user_id})']
-                                    value['Количество отметившихся'] = len(
-                                        set(user for command in value["Отметились"].keys()
-                                            for user, val in value["Отметились"][command].items()
-                                            if val != 0))
-                                # Если в команде нет отметившихся пользователей, удаляем команду
-                            if command in value["Отметились"] and not value["Отметились"][command]:
-                                del value["Отметились"][command]
+                                        if option_ids != 0:
+                                            value["Отметились"][command][f'{user}({user_id})'] = option_ids
+                                        else:
+                                            # Если голос не был поставлен, удаляем пользователя из "Отметились"
+                                            if f'{user}({user_id})' in value["Отметились"][command]:
+                                                del value["Отметились"][command][f'{user}({user_id})']
+                                        value['Количество отметившихся'] = len(
+                                            set(user for command in value["Отметились"].keys()
+                                                for user, val in value["Отметились"][command].items()
+                                                if val != 0))
+                                    # Если в команде нет отметившихся пользователей, удаляем команду
+                                if command in value["Отметились"] and not value["Отметились"][command]:
+                                    del value["Отметились"][command]
 
                         storage.write_data(data)
 

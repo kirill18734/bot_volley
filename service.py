@@ -55,8 +55,8 @@ def send_reminder():
     except Exception as e:
         print(f"Ошибка в send_reminder: {e}")
 
-
 def send_survey():
+
     try:
         data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
@@ -84,13 +84,14 @@ def send_survey():
                                     chat_id=user,
                                     question=question,
                                     options=["Буду", "+1"],
-                                    close_date=target_date2,
                                     is_anonymous=False,
                                     allows_multiple_answers=False,
                                     explanation_parse_mode='HTML'
                                 )
+
                                 if user not in survey_data['id опроса']:
-                                    survey_data['id опроса'][user] = poll_message.poll.id
+                                    survey_data['id опроса'][user] = [int(poll_message.poll.id),
+                                                                      poll_message.message_id]
 
                             except Exception as e:
                                 print(f"Ошибка при отправке опроса пользователю {user}: {e}")
@@ -98,11 +99,20 @@ def send_survey():
                         survey_data['Опрос отправлен'] = "Да"
                         survey_data["Опрос открыт"] = "Да"
                         storage.write_data(data)
-
+                    elif target_date2 == current_date and survey_data.get(
+                            'Опрос отправлен') == 'Да':
+                        for user_id, values in survey_data['id опроса'].items():
+                            try:
+                                bot.stop_poll(user_id, values[-1])
+                            except:
+                                continue
                     elif target_date > current_date and target_date2 > current_date and 'Да' in (
                             survey_data.get('Опрос открыт'), survey_data.get('Опрос отправлен')):
                         survey_data['Опрос отправлен'] = "Нет"
                         survey_data["Опрос открыт"] = "Нет"
+                        survey_data["Количество отметившихся"] = 0
+                        survey_data["id опроса"] = {}
+                        survey_data["Отметились"] = {}
                         storage.write_data(data)
 
     except Exception as e:
