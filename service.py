@@ -25,14 +25,10 @@ def get_users(command_list, data):
             for user in command_list[command].values()
         )
 
-
-from datetime import datetime
-
-
 def send_reminder():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0)
+        current_date = datetime.now().replace(second=0, microsecond=0) - timedelta(hours=3)
 
         for survey_id, survey_data in data['reminder'].items():
             target_date = datetime.strptime(
@@ -58,7 +54,7 @@ def send_reminder():
 def send_survey():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0)
+        current_date = datetime.now().replace(second=0, microsecond=0)  - timedelta(hours=3)
 
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
