@@ -27,14 +27,14 @@ def get_users(command_list, data):
 def send_reminder():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) - timedelta(hours=3)
-
+        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
+        print(current_date)
         for survey_id, survey_data in data['reminder'].items():
             target_date = datetime.strptime(
                 f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
                 "%d-%m-%Y %H:%M"
             )
-
+            print(target_date)
             if survey_data.get('Текст напоминания') and target_date == current_date and survey_data.get(
                     'Напоминание отправлено') == 'Нет':
                 users = get_users(survey_data.get('Получатели напоминания'), data)
@@ -43,8 +43,8 @@ def send_reminder():
                 for user in users:
                     bot.send_message(user, survey_data.get('Текст напоминания'))
 
-            survey_data['Напоминание отправлено'] = "Да"
-            storage.write_data(data)
+                survey_data['Напоминание отправлено'] = "Да"
+                storage.write_data(data)
 
     except Exception as e:
         print(f"Ошибка в send_reminder: {e}")
@@ -53,7 +53,7 @@ def send_reminder():
 def send_survey():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) - timedelta(hours=3)
+        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
 
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
