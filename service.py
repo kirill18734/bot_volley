@@ -34,14 +34,16 @@ def send_reminder():
                 f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
                 "%d-%m-%Y %H:%M"
             )
-            print(target_date)
             if survey_data.get('Текст напоминания') and target_date == current_date and survey_data.get(
                     'Напоминание отправлено') == 'Нет':
                 users = get_users(survey_data.get('Получатели напоминания'), data)
 
                 # Отправляем сообщения синхронно
                 for user in users:
-                    bot.send_message(user, survey_data.get('Текст напоминания'))
+                    try:
+                        bot.send_message(user, survey_data.get('Текст напоминания'))
+                    except:
+                        continue
 
                 survey_data['Напоминание отправлено'] = "Да"
                 storage.write_data(data)
@@ -77,16 +79,18 @@ def send_survey():
                         question = f"{survey_data.get('Тип')} {survey_data.get('Дата тренировки/игры')} ({day_index}) c {survey_data.get('Время тренировки/игры').replace(' - ', ' до ')} стоймость {survey_data.get('Цена')}р .\nАдрес: {survey_data.get('Адрес')}"
                         poll_message = None
                         for user in users:
-                            poll_message = bot.send_poll(
-                                chat_id=user,
-                                question=question,
-                                options=["Буду", "+1"],
-                                close_date=target_date2,
-                                is_anonymous=False,
-                                allows_multiple_answers=False,
-                                explanation_parse_mode='HTML'
-                            )
-
+                            try:
+                                poll_message = bot.send_poll(
+                                    chat_id=user,
+                                    question=question,
+                                    options=["Буду", "+1"],
+                                    close_date=target_date2,
+                                    is_anonymous=False,
+                                    allows_multiple_answers=False,
+                                    explanation_parse_mode='HTML'
+                                )
+                            except:
+                                continue
                         survey_data['Опрос отправлен'] = "Да"
                         survey_data["Опрос открыт"] = "Да"
                         survey_data['id опроса'] = poll_message[0].poll.id
