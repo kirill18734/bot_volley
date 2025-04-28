@@ -47,6 +47,11 @@ def send_reminder():
                 survey_data['Напоминание отправлено'] = "Да"
                 storage.write_data(data)
 
+            elif target_date >= current_date and survey_data.get(
+                    'Напоминание отправлено') == 'Да':
+                survey_data['Напоминание отправлено'] = "Нет"
+                storage.write_data(data)
+
     except Exception as e:
         print(f"Ошибка в send_reminder: {e}")
 
@@ -55,7 +60,6 @@ def send_survey():
     try:
         data = storage.load_data()
         current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
-        print(current_date)
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
                 users = get_users(survey_data.get('Получатели опроса'), data)
@@ -65,7 +69,6 @@ def send_survey():
                         f"{survey_data.get('Дата отправки опроса')} {survey_data.get('Время отправки опроса')}",
                         "%d-%m-%Y %H:%M"
                     )
-                    print(target_date)
                     target_date2 = datetime.strptime(
                         f"{survey_data.get('Дата тренировки/игры')} {survey_data.get('Время тренировки/игры').split(' - ')[0]}",
                         "%d-%m-%Y %H:%M"
@@ -95,8 +98,10 @@ def send_survey():
                         survey_data['id опроса'] = poll_message[0].poll.id
 
                         storage.write_data(data)
-                    elif target_date2 <= current_date and 'Да' in (
+
+                    elif target_date >= current_date and target_date2 >= current_date and 'Да' in (
                             survey_data.get('Опрос открыт'), survey_data.get('Опрос отправлен')):
+                        survey_data['Опрос отправлен'] = "Нет"
                         survey_data["Опрос открыт"] = "Нет"
                         storage.write_data(data)
 
