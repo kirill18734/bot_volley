@@ -727,7 +727,7 @@ class Main:
             parsed, errors = access.parse_kv_input(message.text, mode)
 
             if not parsed and errors:
-                response_test = 'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз.'
+                response_test = f'Некорректное добавление, ознакомьтесь с примерами и попробуйте еще раз. Ошибка:{errors}'
             else:
                 data = storage.load_data()
                 priorities = {
