@@ -237,32 +237,31 @@ class Main:
             data = storage.load_data()
             if data['surveys']:  # Проверяем, есть ли ключ 'surveys'
                 for key, value in data['surveys'].items():
-                    for userid, data_surveys in value["id опроса"].items():
-                        if poll_id in data_surveys:
-                            for command in str(value['Получатели опроса']).split(','):
-                                for user, id_ in (
-                                        data['commands'][command]['users'].items() if command != 'Админы' else data[
-                                            'Админы'].items()):
+                    if any(poll_id in lst for lst in value["id опроса"].values()):
+                        for command in str(value['Получатели опроса']).split(','):
+                            for user, id_ in (
+                                    data['commands'][command]['users'].items() if command != 'Админы' else data[
+                                        'Админы'].items()):
 
-                                    if str(user_id) == id_.split('_')[-1]:
-                                        if command not in value["Отметились"]:
-                                            value["Отметились"][command] = {}
+                                if str(user_id) == id_.split('_')[-1]:
+                                    if command not in value["Отметились"]:
+                                        value["Отметились"][command] = {}
 
-                                        if option_ids != 0:
-                                            value["Отметились"][command][f'{user}({user_id})'] = option_ids
-                                        else:
-                                            # Если голос не был поставлен, удаляем пользователя из "Отметились"
-                                            if f'{user}({user_id})' in value["Отметились"][command]:
-                                                del value["Отметились"][command][f'{user}({user_id})']
-                                        value['Количество отметившихся'] = len(
-                                            set(user for command in value["Отметились"].keys()
-                                                for user, val in value["Отметились"][command].items()
-                                                if val != 0))
-                                    # Если в команде нет отметившихся пользователей, удаляем команду
-                                if command in value["Отметились"] and not value["Отметились"][command]:
-                                    del value["Отметились"][command]
+                                    if option_ids != 0:
+                                        value["Отметились"][command][f'{user}({user_id})'] = option_ids
+                                    else:
+                                        # Если голос не был поставлен, удаляем пользователя из "Отметились"
+                                        if f'{user}({user_id})' in value["Отметились"][command]:
+                                            del value["Отметились"][command][f'{user}({user_id})']
+                                    value['Количество отметившихся'] = len(
+                                        set(user for command in value["Отметились"].keys()
+                                            for user, val in value["Отметились"][command].items()
+                                            if val != 0))
+                                # Если в команде нет отметившихся пользователей, удаляем команду
+                            if command in value["Отметились"] and not value["Отметились"][command]:
+                                del value["Отметились"][command]
 
-                        storage.write_data(data)
+                    storage.write_data(data)
 
         @bot.message_handler(commands=['start'])
         def handle_start(message):
@@ -1019,7 +1018,7 @@ class Main:
                 'Опрос отправлен': "Нет",
                 'Количество отметившихся': 0,
                 'Отметились': {},
-                'id опроса': 0
+                'id опроса': {}
             })
 
             list_user_data = [k for game_data in self.user_data.values() for k, v in game_data.items()] + [

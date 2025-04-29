@@ -27,7 +27,7 @@ def get_users(command_list, data):
 def send_reminder():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
+        current_date = datetime.now().replace(second=0, microsecond=0) #+ timedelta(hours=3)
         for survey_id, survey_data in data['reminder'].items():
             target_date = datetime.strptime(
                 f"{survey_data.get('Дата отправки напоминания')} {survey_data.get('Время отправки напоминания')}",
@@ -59,7 +59,7 @@ def send_reminder():
 def send_survey():
     try:
         data = storage.load_data()
-        current_date = datetime.now().replace(second=0, microsecond=0) + timedelta(hours=3)
+        current_date = datetime.now().replace(second=0, microsecond=0) #+ timedelta(hours=3)
         for survey_id, survey_data in data['surveys'].items():
             if survey_data.get('Получатели опроса'):
                 users = get_users(survey_data.get('Получатели опроса'), data)
